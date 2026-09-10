@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>役表示ポーカー</title>
+<title>POKER × HUNTER · 役トレーナー</title>
 <style>
   :root{
     --felt-dark:#07130c;
@@ -37,14 +37,30 @@
   body{
     min-height:100vh;
     display:flex;
-    align-items:center;
+    align-items:flex-start;
     justify-content:center;
-    padding:10px 8px;
+    padding:18px 8px;
+    background:
+      radial-gradient(circle at 50% 18%, #0b3b25 0%, #020805 62%, #000 100%);
   }
   .stage{
     width:100%;
     max-width:460px;
+    position:relative;
   }
+  .home-corner{
+    position:absolute;
+    top:0;
+    left:0;
+    font-size:9.5px;
+    letter-spacing:0.1em;
+    color:var(--dim);
+    font-weight:700;
+    padding:4px 8px;
+    cursor:pointer;
+    opacity:0.7;
+  }
+  .home-corner:hover{ opacity:1; color:var(--gold); }
   .title{
     text-align:center;
     font-size:11px;
@@ -52,6 +68,7 @@
     color:var(--gold);
     margin:0 0 6px;
     font-weight:600;
+    cursor:pointer;
   }
   .matchup-caption{
     text-align:center;
@@ -62,6 +79,364 @@
     font-weight:500;
     opacity:0.75;
   }
+
+  /* ================== ホーム画面 ================== */
+  .home-logo{
+    position:relative;
+    text-align:center;
+    padding:8px 0 2px;
+    margin-bottom:2px;
+    user-select:none;
+  }
+  .home-logo-main{
+    font-family:Georgia,"Times New Roman",serif;
+    font-size:42px;
+    line-height:.92;
+    letter-spacing:.035em;
+    font-weight:900;
+    color:#f2c85c;
+    text-shadow:
+      0 2px 0 #8b671d,
+      0 5px 14px rgba(0,0,0,.55),
+      0 0 18px rgba(232,200,116,.18);
+  }
+  .home-logo-x{
+    font-family:Georgia,"Times New Roman",serif;
+    font-size:25px;
+    line-height:1;
+    color:var(--gold-bright);
+    margin:4px 0 2px;
+    text-shadow:0 2px 8px rgba(232,200,116,.35);
+  }
+  .home-logo-hunter{
+    font-family:Georgia,"Times New Roman",serif;
+    font-size:38px;
+    line-height:.92;
+    letter-spacing:.055em;
+    font-weight:900;
+    color:#edf0ed;
+    text-shadow:
+      0 2px 0 #737873,
+      0 5px 14px rgba(0,0,0,.6);
+  }
+  .home-logo-line{
+    height:1px;
+    background:linear-gradient(90deg,transparent,rgba(232,200,116,.85),transparent);
+    margin:8px 10px 0;
+  }
+
+  .home-cover{
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    padding:16px 12px 14px;
+    overflow:hidden;
+  }
+  .hc-suit{
+    position:absolute;
+    font-size:52px;
+    color:rgba(255,255,255,0.05);
+    pointer-events:none;
+    line-height:1;
+  }
+  .hc-suit-tl{ top:6px; left:10px; }
+  .hc-suit-tr{ top:6px; right:10px; }
+  .hc-suit-bl{ bottom:6px; left:10px; }
+  .hc-suit-br{ bottom:6px; right:10px; }
+
+  .home-cover-lead{
+    position:relative;
+    text-align:center;
+    font-size:12px;
+    color:var(--dim);
+    letter-spacing:0.06em;
+    margin:0 0 4px;
+  }
+  .home-cover-btn{
+    position:relative;
+    font-family:inherit;
+    text-align:left;
+    padding:14px 15px;
+    min-height:96px;
+    border-radius:18px;
+    border:1px solid rgba(232,200,116,0.3);
+    background:linear-gradient(155deg, rgba(232,200,116,0.1), rgba(0,0,0,0.2));
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    width:100%;
+    max-width:none;
+    flex:none;
+  }
+  .home-cover-btn:active{ transform:scale(0.98); }
+  .home-cover-btn .hc-icon{
+    flex-shrink:0;
+    width:58px;height:58px;
+  }
+  .home-cover-btn .hc-icon svg{ width:100%; height:100%; }
+  .home-cover-btn .hc-text{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    gap:3px;
+    min-width:0;
+  }
+  .home-cover-btn .hc-title{
+    font-size:17px;
+    font-weight:800;
+    color:var(--gold-bright);
+  }
+  .home-cover-btn .hc-desc{
+    font-size:11.5px;
+    color:var(--dim);
+    line-height:1.35;
+  }
+  .home-cover-btn .hc-arrow{
+    flex-shrink:0;
+    width:38px;height:38px;
+    border-radius:50%;
+    border:1.5px solid currentColor;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:23px;
+    font-weight:700;
+  }
+
+  .home-cover-btn.hc-gold{ border-color:rgba(232,200,116,0.45); }
+  .home-cover-btn.hc-gold .hc-title{ color:#f2d98a; }
+  .home-cover-btn.hc-gold .hc-arrow{ color:#f2d98a; }
+
+  .home-cover-btn.hc-green{ border-color:rgba(111,191,74,0.45); background:linear-gradient(155deg, rgba(111,191,74,0.1), rgba(0,0,0,0.2)); }
+  .home-cover-btn.hc-green .hc-title{ color:#a8e58a; }
+  .home-cover-btn.hc-green .hc-arrow{ color:#a8e58a; }
+
+  .home-cover-btn.hc-blue{ border-color:rgba(91,155,213,0.5); background:linear-gradient(155deg, rgba(91,155,213,0.12), rgba(0,0,0,0.2)); }
+  .home-cover-btn.hc-blue .hc-title{ color:#9dc8ef; }
+  .home-cover-btn.hc-blue .hc-arrow{ color:#9dc8ef; }
+
+  .home-cover-btn.hc-purple{ border-color:rgba(178,128,224,0.5); background:linear-gradient(155deg, rgba(178,128,224,0.12), rgba(0,0,0,0.2)); }
+  .home-cover-btn.hc-purple .hc-title{ color:#cba8ef; }
+  .home-cover-btn.hc-purple .hc-arrow{ color:#cba8ef; }
+
+  body.is-home .home-corner,
+  body.is-home > .stage > .title,
+  body.is-home > .stage > .matchup-caption{
+    display:none;
+  }
+  body.is-home .stage{
+    max-width:460px;
+  }
+
+  .mode-tabs{
+    display:flex;
+    gap:6px;
+    margin-bottom:8px;
+  }
+  .mode-tab{
+    flex:1;
+    font-family:inherit;
+    padding:8px 0;
+    border-radius:10px;
+    border:1px solid rgba(232,200,116,0.22);
+    background:rgba(255,255,255,0.03);
+    color:var(--dim);
+    font-size:11px;
+    font-weight:700;
+    letter-spacing:0.02em;
+    cursor:pointer;
+  }
+  .mode-tab.active{
+    background:linear-gradient(155deg,var(--gold-bright),var(--gold));
+    color:#241a04;
+    border-color:transparent;
+  }
+
+  .manual-section{
+    margin-top:12px;
+    padding-top:10px;
+    border-top:1px solid rgba(232,200,116,0.12);
+  }
+  .manual-label{
+    font-size:11px;
+    color:var(--dim);
+    letter-spacing:0.04em;
+    margin-bottom:6px;
+    font-weight:700;
+  }
+
+  .deck-grid{
+    display:grid;
+    grid-template-columns:repeat(13, 1fr);
+    grid-template-rows:repeat(4, 1fr);
+    gap:2px;
+    margin-top:10px;
+    padding-top:8px;
+    border-top:1px solid rgba(232,200,116,0.12);
+  }
+  .deck-cell{
+    font-family:inherit;
+    aspect-ratio:0.78;
+    border:none;
+    border-radius:4px;
+    font-size:8.5px;
+    line-height:1.05;
+    font-weight:800;
+    cursor:pointer;
+    padding:0;
+    color:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .deck-cell:disabled{
+    opacity:0.15;
+    cursor:default;
+  }
+
+  .quiz-guess-row{
+    display:flex;
+    justify-content:center;
+    gap:6px;
+    margin:4px 0 8px;
+  }
+  .quiz-guess-btn{
+    font-family:inherit;
+    flex:1;
+    max-width:52px;
+    padding:10px 0;
+    border-radius:10px;
+    border:none;
+    font-size:15px;
+    font-weight:900;
+    cursor:pointer;
+    color:#1a1a1a;
+    transition:transform 0.1s ease;
+  }
+  .quiz-guess-btn:active{ transform:scale(0.94); }
+  .quiz-guess-btn:disabled{
+    opacity:0.35;
+    cursor:default;
+  }
+  .quiz-guess-btn.picked{
+    outline:3px solid var(--gold-bright);
+    outline-offset:1px;
+  }
+
+  .quiz-stamp{
+    text-align:center;
+    min-height:0;
+  }
+  .quiz-stamp:empty{ display:none; }
+  .quiz-stamp .mark{
+    display:inline-block;
+    font-size:52px;
+    font-weight:900;
+    line-height:1;
+    animation:stampPop 0.35s cubic-bezier(.2,1.6,.4,1);
+  }
+  .quiz-stamp .msg{
+    display:block;
+    font-size:14px;
+    font-weight:800;
+    margin-top:2px;
+  }
+  .quiz-stamp.correct .mark, .quiz-stamp.correct .msg{ color:#57e08d; }
+  .quiz-stamp.close .mark, .quiz-stamp.close .msg{ color:#ffe14d; }
+  .quiz-stamp.wrong .mark, .quiz-stamp.wrong .msg{ color:#ff5252; }
+  @keyframes stampPop{
+    0%{ transform:scale(0.3) rotate(-12deg); opacity:0; }
+    70%{ transform:scale(1.15) rotate(4deg); opacity:1; }
+    100%{ transform:scale(1) rotate(0deg); opacity:1; }
+  }
+
+  .quiz-score{
+    text-align:center;
+    font-size:10.5px;
+    color:var(--dim);
+    margin-top:2px;
+    letter-spacing:0.03em;
+  }
+
+  .combo-question{
+    text-align:center;
+    font-size:14px;
+    font-weight:700;
+    color:var(--ink);
+    line-height:1.5;
+    padding:6px 4px;
+    min-height:44px;
+  }
+  .combo-answer-display{
+    text-align:center;
+    font-size:26px;
+    font-weight:900;
+    color:var(--gold-bright);
+    letter-spacing:0.08em;
+    min-height:34px;
+    margin:4px 0 8px;
+    border-bottom:2px solid rgba(232,200,116,0.3);
+    padding-bottom:6px;
+  }
+  .combo-answer-display.empty{ color:var(--dim); }
+  .numpad{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:6px;
+    margin-top:4px;
+  }
+  .numpad-btn{
+    font-family:inherit;
+    padding:13px 0;
+    border-radius:10px;
+    border:1px solid rgba(232,200,116,0.25);
+    background:rgba(255,255,255,0.05);
+    color:var(--ink);
+    font-size:17px;
+    font-weight:700;
+    cursor:pointer;
+    width:100%;
+    max-width:none;
+    flex:none;
+  }
+  .numpad-btn:active{ transform:scale(0.94); }
+  .numpad-btn.wide{ grid-column:span 1; }
+  .numpad-btn.clear{ color:#ff8a8a; border-color:rgba(255,82,82,0.3); }
+  .numpad-btn.confirm{
+    background:linear-gradient(155deg,var(--gold-bright),var(--gold));
+    color:#241a04;
+    border:none;
+  }
+  .combo-explain{
+    text-align:center;
+    min-height:0;
+  }
+  .combo-explain:empty{ display:none; }
+  .combo-explain .mark{
+    display:inline-block;
+    font-size:40px;
+    font-weight:900;
+    line-height:1;
+    animation:stampPop 0.35s cubic-bezier(.2,1.6,.4,1);
+  }
+  .combo-explain .msg{
+    display:block;
+    font-size:13px;
+    font-weight:700;
+    margin-top:2px;
+  }
+  .combo-explain .formula{
+    display:block;
+    font-size:12px;
+    color:var(--dim);
+    margin-top:4px;
+    font-family:monospace;
+  }
+  .combo-explain.correct .mark, .combo-explain.correct .msg{ color:#57e08d; }
+  .combo-explain.wrong .mark, .combo-explain.wrong .msg{ color:#ff5252; }
+
   .table{
     position:relative;
     background:
@@ -184,6 +559,14 @@
     box-shadow:none;
     animation:none;
   }
+  .card.empty.active-slot{
+    border:1.5px solid rgba(255,224,138,0.8);
+    animation:activeSlotGlow 1.3s ease-in-out infinite;
+  }
+  @keyframes activeSlotGlow{
+    0%, 100% { box-shadow:0 0 6px 1px rgba(255,224,138,0.45), inset 0 0 6px rgba(255,224,138,0.15); }
+    50% { box-shadow:0 0 16px 5px rgba(255,224,138,0.85), inset 0 0 10px rgba(255,224,138,0.3); }
+  }
   .card.back{
     background:
       repeating-linear-gradient(45deg, #0d3a24, #0d3a24 4px, #12492e 4px, #12492e 8px);
@@ -225,6 +608,11 @@
     border:1px solid rgba(255,255,255,0.18);
   }
   .btn-back:hover{ background:rgba(255,255,255,0.1); }
+  .btn-back:disabled{
+    opacity:0.3;
+    cursor:default;
+    pointer-events:none;
+  }
   .btn-raise, .btn-next, .btn-reveal{
     background:linear-gradient(155deg,var(--gold-bright),var(--gold));
     color:#241a04;
@@ -406,8 +794,95 @@
 </head>
 <body>
 <div class="stage">
-  <p class="title">TEXAS HOLD'EM · 役トレーナー</p>
+  <div class="home-corner" onclick="goHome()">HOME</div>
+  <p class="title" onclick="goHome()">TEXAS HOLD'EM · 役トレーナー</p>
   <p class="matchup-caption">Player: BTN (vs BBDF)</p>
+
+  <div id="homePanel" class="table home-cover">
+    <span class="hc-suit hc-suit-tl">♠</span>
+    <span class="hc-suit hc-suit-tr">♥</span>
+    <span class="hc-suit hc-suit-bl">♦</span>
+    <span class="hc-suit hc-suit-br">♣</span>
+
+    <div class="home-logo">
+      <div class="home-logo-main">POKER</div>
+      <div class="home-logo-x">×</div>
+      <div class="home-logo-hunter">HUNTER</div>
+      <div class="home-logo-line"></div>
+    </div>
+
+    <button class="home-cover-btn hc-gold" onclick="enterMode('quick')">
+      <span class="hc-icon">
+        <svg viewBox="0 0 48 48" aria-hidden="true">
+          <rect x="7" y="9" width="22" height="31" rx="3" transform="rotate(-10 18 24)" fill="#c99b31" stroke="#ffe08a" stroke-width="1"/>
+          <rect x="19" y="7" width="22" height="31" rx="3" transform="rotate(10 30 22)" fill="#11150f" stroke="#f5d77f" stroke-width="1.4"/>
+          <text x="30" y="28" font-size="15" fill="#f5d77f" text-anchor="middle" font-weight="900">♠</text>
+        </svg>
+      </span>
+      <span class="hc-text">
+        <span class="hc-title">クイックスタート</span>
+        <span class="hc-desc">ランダムなハンドで実戦形式に練習する</span>
+      </span>
+      <span class="hc-arrow">›</span>
+    </button>
+
+    <button class="home-cover-btn hc-green" onclick="enterMode('manual')">
+      <span class="hc-icon">
+        <svg viewBox="0 0 48 48" aria-hidden="true">
+          <rect x="5" y="10" width="21" height="30" rx="3" transform="rotate(-7 15 25)" fill="#0e2418" stroke="#8bdc91" stroke-width="1.4"/>
+          <rect x="16" y="8" width="21" height="30" rx="3" transform="rotate(7 27 23)" fill="#0e2418" stroke="#8bdc91" stroke-width="1.4"/>
+          <text x="14" y="28" font-size="13" fill="#eef4ee" text-anchor="middle" font-weight="900">A</text>
+          <text x="28" y="27" font-size="13" fill="#eef4ee" text-anchor="middle" font-weight="900">K</text>
+          <text x="23" y="41" font-size="17" fill="#8bdc91" text-anchor="middle">♠</text>
+        </svg>
+      </span>
+      <span class="hc-text">
+        <span class="hc-title">ハンド・ボードを指定</span>
+        <span class="hc-desc">自分でハンドとボードを選んで役・ランクを調べる</span>
+      </span>
+      <span class="hc-arrow">›</span>
+    </button>
+
+    <button class="home-cover-btn hc-blue" onclick="enterMode('quiz')">
+      <span class="hc-icon">
+        <svg viewBox="0 0 48 48" aria-hidden="true">
+          <circle cx="24" cy="24" r="17" fill="none" stroke="#64b7e8" stroke-width="1.7"/>
+          <path d="M16 20c0-5 4-8 9-8 5 0 8 3 8 7 0 4-2 6-6 8-2 1-3 2-3 5" fill="none" stroke="#9bd8ff" stroke-width="2.4" stroke-linecap="round"/>
+          <circle cx="24" cy="37" r="1.7" fill="#9bd8ff"/>
+        </svg>
+      </span>
+      <span class="hc-text">
+        <span class="hc-title">クイズ</span>
+        <span class="hc-desc">フロップ→ターン→リバーでランクの変化を当てる</span>
+      </span>
+      <span class="hc-arrow">›</span>
+    </button>
+
+    <button class="home-cover-btn hc-purple" onclick="enterMode('combo')">
+      <span class="hc-icon">
+        <svg viewBox="0 0 48 48" aria-hidden="true">
+          <circle cx="24" cy="24" r="17" fill="none" stroke="#cba8ef" stroke-width="1.7"/>
+          <text x="24" y="17" font-size="10" fill="#cba8ef" text-anchor="middle" font-weight="900">6</text>
+          <text x="24" y="28" font-size="10" fill="#cba8ef" text-anchor="middle" font-weight="900">4</text>
+          <text x="24" y="39" font-size="10" fill="#cba8ef" text-anchor="middle" font-weight="900">12</text>
+        </svg>
+      </span>
+      <span class="hc-text">
+        <span class="hc-title">コンボ数クイズ</span>
+        <span class="hc-desc">ペア・スーテッド・オフスートやブロッカーのコンボ数を数字で答える</span>
+      </span>
+      <span class="hc-arrow">›</span>
+    </button>
+  </div>
+
+  <div class="mode-tabs" id="modeTabs" style="display:none;">
+    <button class="mode-tab active" id="tabQuick" onclick="setMode('quick')">クイックスタート</button>
+    <button class="mode-tab" id="tabManual" onclick="setMode('manual')">ハンド・ボードを指定</button>
+    <button class="mode-tab" id="tabQuiz" onclick="setMode('quiz')">クイズ</button>
+    <button class="mode-tab" id="tabCombo" onclick="setMode('combo')">コンボ数</button>
+  </div>
+
+  <div id="quickPanel" style="display:none;">
   <div class="table">
     <div class="stage-label" id="stageLabel">プリフロップ</div>
     <div class="community" id="community"></div>
@@ -434,7 +909,6 @@
 
     <div class="actions" id="actions"></div>
   </div>
-  <p class="footer-note">フォールド以外は自動進行。無限にハンドが配られます。</p>
   <div class="ask-ai-panel">
     <button class="btn-ask-ai" id="askAiOpenBtn" onclick="openAskAiOptions()">AIに聞く</button>
     <div class="ask-ai-options" id="askAiOptions" style="display:none;">
@@ -449,7 +923,70 @@
       <button class="btn-ask-ai" id="askAiBtn" onclick="copyForAI()">決定(コピー)</button>
     </div>
   </div>
+  </div>
+
+  <div id="manualPanel" style="display:none;">
+  <div class="table">
+    <div class="stage-label" id="manualStageLabel">ハンドの1枚目を選択</div>
+    <div class="community" id="manualCommunity"></div>
+    <div class="hole-row" id="manualHoleRow"></div>
+
+    <div class="hand-banner">
+      <div class="hand-name" id="manualHandName"></div>
+    </div>
+    <div class="tier-row" id="manualTierRow"></div>
+    <div class="pyramid-wrap" id="manualPyramidWrap"></div>
+
+    <div class="deck-grid" id="deckGrid"></div>
+
+    <div class="actions">
+      <button class="btn-back" id="undoBtn" onclick="undoManualStep()">戻る</button>
+      <button class="btn-back" onclick="resetManual()">リセット</button>
+    </div>
+  </div>
+  </div>
+
+  <div id="quizPanel" style="display:none;">
+  <div class="table">
+    <div class="stage-label" id="quizStageLabel">フロップ</div>
+    <div class="community" id="quizCommunity"></div>
+    <div class="hole-row" id="quizHoleRow"></div>
+
+    <div class="hand-banner">
+      <div class="hand-name" id="quizHandName"></div>
+    </div>
+
+    <div class="quiz-guess-row" id="quizGuessRow"></div>
+    <div class="quiz-stamp" id="quizStamp"></div>
+
+    <div class="tier-row" id="quizTierRow"></div>
+    <div class="pyramid-wrap" id="quizPyramidWrap"></div>
+
+    <div class="quiz-score" id="quizScoreLabel"></div>
+
+    <div class="actions" id="quizActions">
+      <button class="btn-next single" onclick="newQuizRound()">次の問題</button>
+    </div>
+  </div>
+  </div>
+
+  <div id="comboPanel" style="display:none;">
+  <div class="table">
+    <div class="stage-label">コンボ数クイズ</div>
+
+    <div class="combo-question" id="comboQuestion"></div>
+    <div class="combo-answer-display empty" id="comboAnswerDisplay">?</div>
+
+    <div class="numpad" id="comboNumpad"></div>
+
+    <div class="combo-explain" id="comboExplain"></div>
+
+    <div class="quiz-score" id="comboScoreLabel"></div>
+  </div>
+  </div>
 </div>
+
+
 
 <script>
 const SUITS = ['d','h','c','s'];
@@ -887,8 +1424,8 @@ function cardHTML(card){
       <div class="r-label">${lab}</div>
     </div>`;
 }
-function emptySlotHTML(){
-  return `<div class="card empty"></div>`;
+function emptySlotHTML(active){
+  return `<div class="card empty${active ? ' active-slot' : ''}"></div>`;
 }
 function backSlotHTML(){
   return `<div class="card back"></div>`;
@@ -1115,6 +1652,501 @@ function fallbackCopy(text){
 }
 
 newHand();
+document.body.classList.add('is-home');
+
+/* ================== モード切り替え & 手動指定モード ================== */
+let appMode = 'quick';
+const RANK_ORDER = ['A','K','Q','J','T','9','8','7','6','5','4','3','2'];
+const SUIT_BG = { d:'#3f7fe8', h:'#dd4b4b', c:'#6fbf4a', s:'#6b7178' };
+
+let manualHole = [null, null];
+let manualBoard = [null, null, null, null, null];
+
+function goHome(){
+  document.body.classList.add('is-home');
+  showHand = true;
+  showTier = true;
+  const revealCb = document.getElementById('revealCheckbox');
+  const tierCb = document.getElementById('tierCheckbox');
+  if(revealCb) revealCb.checked = true;
+  if(tierCb) tierCb.checked = true;
+  const askOptions = document.getElementById('askAiOptions');
+  const askOpenBtn = document.getElementById('askAiOpenBtn');
+  if(askOptions) askOptions.style.display = 'none';
+  if(askOpenBtn) askOpenBtn.style.display = 'inline-block';
+  resetManual();
+  quizHole = null;
+  quizFullBoard = null;
+  quizStreetIndex = 0;
+  quizAnswered = false;
+  quizGuess = null;
+  comboQuestionData = null;
+  comboAnswerInput = '';
+  comboAnswered = false;
+
+  document.getElementById('homePanel').style.display = 'flex';
+  document.getElementById('modeTabs').style.display = 'none';
+  document.querySelector('.home-corner').style.display = 'none';
+  document.querySelector('.title').style.display = 'none';
+  document.querySelector('.matchup-caption').style.display = 'none';
+  document.getElementById('quickPanel').style.display = 'none';
+  document.getElementById('manualPanel').style.display = 'none';
+  document.getElementById('quizPanel').style.display = 'none';
+  document.getElementById('comboPanel').style.display = 'none';
+}
+
+function enterMode(mode){
+  document.body.classList.remove('is-home');
+  document.getElementById('homePanel').style.display = 'none';
+  document.getElementById('modeTabs').style.display = 'flex';
+  setMode(mode);
+  if(mode === 'quick') newHand();
+}
+
+function setMode(mode){
+  appMode = mode;
+  document.getElementById('tabQuick').classList.toggle('active', mode === 'quick');
+  document.getElementById('tabManual').classList.toggle('active', mode === 'manual');
+  document.getElementById('tabQuiz').classList.toggle('active', mode === 'quiz');
+  document.getElementById('tabCombo').classList.toggle('active', mode === 'combo');
+  document.getElementById('quickPanel').style.display = mode === 'quick' ? 'block' : 'none';
+  document.getElementById('manualPanel').style.display = mode === 'manual' ? 'block' : 'none';
+  document.getElementById('quizPanel').style.display = mode === 'quiz' ? 'block' : 'none';
+  document.getElementById('comboPanel').style.display = mode === 'combo' ? 'block' : 'none';
+  if(mode === 'manual') renderManual();
+  if(mode === 'quiz'){
+    if(!quizHole) newQuizRound(); else renderQuiz();
+  }
+  if(mode === 'combo'){
+    if(!comboQuestionData) newComboQuestion(); else renderComboQuiz();
+  }
+}
+
+/* ================== クイズモード ================== */
+const TIER_ORDER = ['S','A','B','C','D','E'];
+let quizHole = null;
+let quizFullBoard = null;   // 5枚を先に確定させ、streetIndexに応じて見せる枚数を変える
+let quizStreetIndex = 0;    // 0=フロップ 1=ターン 2=リバー
+let quizAnswered = false;
+let quizGuess = null;
+let quizScore = { correct: 0, total: 0 };
+let quizStreak = 0;
+let quizBestStreak = 0;
+
+/* ハンドはBTNオープンレンジ(578コンボ)からランダムに選ぶ(オープンしている前提のため) */
+function dealQuizHand(){
+  const rangeCombos = getRangeCombos();
+  const combo = rangeCombos[Math.floor(Math.random() * rangeCombos.length)];
+  quizHole = [{ r:combo[0].r, s:combo[0].s }, { r:combo[1].r, s:combo[1].s }];
+  const deck = shuffle(buildDeck()).filter(c =>
+    !(c.r === quizHole[0].r && c.s === quizHole[0].s) &&
+    !(c.r === quizHole[1].r && c.s === quizHole[1].s)
+  );
+  quizFullBoard = [deck.pop(), deck.pop(), deck.pop(), deck.pop(), deck.pop()];
+}
+
+function newQuizRound(){
+  dealQuizHand();
+  quizStreetIndex = 0;
+  quizAnswered = false;
+  quizGuess = null;
+  renderQuiz();
+}
+
+function onQuizGuess(tier){
+  if(quizAnswered) return;
+  quizGuess = tier;
+  quizAnswered = true;
+  quizScore.total++;
+  const community = quizFullBoard.slice(0, 3 + quizStreetIndex);
+  const dist = computeTierDistribution(quizHole, community);
+  const d = Math.abs(TIER_ORDER.indexOf(tier) - TIER_ORDER.indexOf(dist.heroTier));
+  if(d === 0){
+    quizScore.correct++;
+    quizStreak++;
+    quizBestStreak = Math.max(quizBestStreak, quizStreak);
+  } else {
+    quizStreak = 0;
+  }
+  renderQuiz();
+}
+
+function onQuizNext(){
+  if(quizStreetIndex < 2){
+    quizStreetIndex++;
+    quizAnswered = false;
+    quizGuess = null;
+    renderQuiz();
+  } else {
+    newQuizRound();
+  }
+}
+
+function renderQuiz(){
+  const community = quizFullBoard.slice(0, 3 + quizStreetIndex);
+  const stageNames = ['フロップ', 'ターン', 'リバー'];
+  document.getElementById('quizStageLabel').textContent = stageNames[quizStreetIndex];
+
+  let commHTML = '';
+  for(let i = 0; i < 5; i++) commHTML += i < community.length ? cardHTML(quizFullBoard[i]) : emptySlotHTML();
+  document.getElementById('quizCommunity').innerHTML = commHTML;
+  document.getElementById('quizHoleRow').innerHTML = quizHole.map(cardHTML).join('');
+
+  const evalResult = evaluateBest([...quizHole, ...community]);
+  let handName = HAND_NAMES[evalResult.rank];
+  if(evalResult.rank === 9) handName = 'ロイヤルフラッシュ';
+  if(isBoardOnly(evalResult, community)) handName += ' <span class="board-tag">(ボード)</span>';
+  const nameEl = document.getElementById('quizHandName');
+  nameEl.innerHTML = handName;
+  nameEl.className = 'hand-name ' + handClass(evalResult.rank);
+
+  const guessRowEl = document.getElementById('quizGuessRow');
+  const stampEl = document.getElementById('quizStamp');
+  const tierRowEl = document.getElementById('quizTierRow');
+  const pyramidEl = document.getElementById('quizPyramidWrap');
+  const scoreEl = document.getElementById('quizScoreLabel');
+  const actionsEl = document.getElementById('quizActions');
+
+  guessRowEl.innerHTML = TIER_ORDER.map(t => {
+    const picked = quizGuess === t ? ' picked' : '';
+    return `<button class="quiz-guess-btn${picked}" style="background:${TIER_COLORS[t]};" ${quizAnswered ? 'disabled' : ''} onclick="onQuizGuess('${t}')">${t}</button>`;
+  }).join('');
+
+  if(!quizAnswered){
+    stampEl.className = 'quiz-stamp';
+    stampEl.innerHTML = '';
+    tierRowEl.innerHTML = '';
+    pyramidEl.innerHTML = '';
+    actionsEl.style.visibility = 'hidden';
+  } else {
+    const dist = computeTierDistribution(quizHole, community);
+    const pct = Math.round(dist.heroPercentile * 100);
+    const d = Math.abs(TIER_ORDER.indexOf(quizGuess) - TIER_ORDER.indexOf(dist.heroTier));
+    let cls, mark, msg;
+    if(d === 0){ cls = 'correct'; mark = '○'; msg = '正解!'; }
+    else if(d === 1){ cls = 'close'; mark = '△'; msg = '惜しい!(1ランク差)'; }
+    else { cls = 'wrong'; mark = '✕'; msg = '残念...'; }
+    stampEl.className = 'quiz-stamp ' + cls;
+    stampEl.innerHTML = `<span class="mark">${mark}</span><span class="msg">${msg}(正解は${dist.heroTier}ランク)</span>`;
+
+    tierRowEl.innerHTML = `
+      <div class="tier-badge tier-${dist.heroTier}">
+        <span class="letter">${dist.heroTier}ランク</span>
+        <span class="pct">上位${pct}%相当</span>
+      </div>`;
+    pyramidEl.innerHTML = pyramidSVG(dist.dist, dist.heroTier) + pyramidLegendHTML(dist.dist, dist.heroTier);
+    actionsEl.style.visibility = 'visible';
+    actionsEl.innerHTML = `<button class="btn-next single" onclick="onQuizNext()">${quizStreetIndex < 2 ? '次(' + stageNames[quizStreetIndex + 1] + ')へ' : '次の問題(新しいハンド)'}</button>`;
+  }
+
+  scoreEl.textContent = `正解 ${quizScore.correct} / ${quizScore.total} ・ 連続正解 ${quizStreak}(最高 ${quizBestStreak})`;
+}
+
+/* ================== コンボ数クイズ ================== */
+let comboQuestionData = null; // { question, answer, formula }
+let comboAnswerInput = '';
+let comboAnswered = false;
+let comboScore = { correct: 0, total: 0 };
+
+function randRank(){ return RANK_ORDER[Math.floor(Math.random() * 13)]; }
+function randTwoDistinctRanks(){
+  const a = randRank();
+  let b = randRank();
+  while(b === a) b = randRank();
+  // 表示上は強い方を先に(RANK_ORDER内でindexが小さい方が強い)
+  const ia = RANK_ORDER.indexOf(a), ib = RANK_ORDER.indexOf(b);
+  return ia < ib ? [a, b] : [b, a];
+}
+function randSuitSymbol(){
+  const s = SUITS[Math.floor(Math.random() * 4)];
+  return SUIT_SYMBOL[s];
+}
+/* pair/offsuitは重み2、suitedは重み1(易しすぎるため出現頻度を下げる) */
+function randHandType(){
+  const roll = Math.random() * 5;
+  if(roll < 2) return 'pair';
+  if(roll < 3) return 'suited';
+  return 'offsuit';
+}
+
+function generateComboQuestion(){
+  const qType = ['basic', 'blocker', 'sum'][Math.floor(Math.random() * 3)];
+
+  if(qType === 'basic'){
+    const handType = randHandType();
+    if(handType === 'pair'){
+      const r = randRank();
+      return { question: `${r}${r}は何コンボ?`, answer: 6, formula: `${r}${r} = 6コンボ` };
+    }
+    if(handType === 'suited'){
+      const [hi, lo] = randTwoDistinctRanks();
+      return { question: `${hi}${lo}s(スーテッド)は何コンボ?`, answer: 4, formula: `${hi}${lo}s = 4コンボ` };
+    }
+    const [hi, lo] = randTwoDistinctRanks();
+    return { question: `${hi}${lo}o(オフスート)は何コンボ?`, answer: 12, formula: `${hi}${lo}o = 12コンボ` };
+  }
+
+  if(qType === 'blocker'){
+    const handType = randHandType();
+    const suit = randSuitSymbol();
+    if(handType === 'pair'){
+      const r = randRank();
+      return {
+        question: `自分が${r}${suit}を1枚持っている時、相手の${r}${r}は何コンボ残っていますか?`,
+        answer: 3,
+        formula: `6 − 3(1枚ブロック) = 3`
+      };
+    }
+    if(handType === 'suited'){
+      const [hi, lo] = randTwoDistinctRanks();
+      const blockRank = Math.random() < 0.5 ? hi : lo;
+      return {
+        question: `自分が${blockRank}${suit}を1枚持っている時、相手の${hi}${lo}s(全スート合計)は何コンボ残っていますか?`,
+        answer: 3,
+        formula: `4 − 1(1枚ブロック) = 3`
+      };
+    }
+    const [hi, lo] = randTwoDistinctRanks();
+    const blockRank = Math.random() < 0.5 ? hi : lo;
+    return {
+      question: `自分が${blockRank}${suit}を1枚持っている時、相手の${hi}${lo}o(全スート合計)は何コンボ残っていますか?`,
+      answer: 9,
+      formula: `12 − 3(1枚ブロック) = 9`
+    };
+  }
+
+  // sum
+  const sumType = Math.floor(Math.random() * 4);
+  if(sumType === 0){
+    const [r1, r2] = randTwoDistinctRanks();
+    return { question: `${r1}${r1}と${r2}${r2}を合わせると、合計何コンボ?`, answer: 12, formula: `6 + 6 = 12` };
+  }
+  if(sumType === 1){
+    let ranks = [];
+    while(ranks.length < 3){
+      const r = randRank();
+      if(!ranks.includes(r)) ranks.push(r);
+    }
+    return { question: `${ranks[0]}${ranks[0]}・${ranks[1]}${ranks[1]}・${ranks[2]}${ranks[2]}の3種類のペアを合計すると、何コンボ?`, answer: 18, formula: `6 × 3 = 18` };
+  }
+  if(sumType === 2){
+    const [hi, lo] = randTwoDistinctRanks();
+    return { question: `「${hi}${lo}s」と「${hi}${lo}o」を合わせると(${hi}${lo}全体)、合計何コンボ?`, answer: 16, formula: `4 + 12 = 16` };
+  }
+  const [a1, a2] = randTwoDistinctRanks();
+  const [b1, b2] = randTwoDistinctRanks();
+  return { question: `「${a1}${a2}s」と「${b1}${b2}s」を合わせると、合計何コンボ?`, answer: 8, formula: `4 + 4 = 8` };
+}
+
+function newComboQuestion(){
+  comboQuestionData = generateComboQuestion();
+  comboAnswerInput = '';
+  comboAnswered = false;
+  renderComboQuiz();
+}
+
+function onNumpadDigit(d){
+  if(comboAnswered){ newComboQuestion(); return; }
+  if(comboAnswerInput.length >= 3) return;
+  comboAnswerInput += d;
+  renderComboQuiz();
+}
+function onNumpadBackspace(){
+  if(comboAnswered) return;
+  comboAnswerInput = comboAnswerInput.slice(0, -1);
+  renderComboQuiz();
+}
+function onNumpadClear(){
+  if(comboAnswered) return;
+  comboAnswerInput = '';
+  renderComboQuiz();
+}
+function onNumpadConfirm(){
+  if(comboAnswered){ newComboQuestion(); return; }
+  if(comboAnswerInput === '') return;
+  comboAnswered = true;
+  comboScore.total++;
+  const userAnswer = parseInt(comboAnswerInput, 10);
+  if(userAnswer === comboQuestionData.answer) comboScore.correct++;
+  renderComboQuiz();
+}
+
+function renderComboQuiz(){
+  document.getElementById('comboQuestion').textContent = comboQuestionData.question;
+
+  const displayEl = document.getElementById('comboAnswerDisplay');
+  displayEl.textContent = comboAnswerInput === '' ? '?' : comboAnswerInput;
+  displayEl.className = 'combo-answer-display' + (comboAnswerInput === '' ? ' empty' : '');
+
+  const explainEl = document.getElementById('comboExplain');
+  if(!comboAnswered){
+    explainEl.className = 'combo-explain';
+    explainEl.innerHTML = '';
+  } else {
+    const correct = parseInt(comboAnswerInput, 10) === comboQuestionData.answer;
+    explainEl.className = 'combo-explain ' + (correct ? 'correct' : 'wrong');
+    explainEl.innerHTML = `
+      <span class="mark">${correct ? '○' : '✕'}</span>
+      <span class="msg">${correct ? '正解!' : `残念...正解は${comboQuestionData.answer}`}</span>
+      <span class="formula">${comboQuestionData.formula}</span>`;
+  }
+
+  const numpadEl = document.getElementById('comboNumpad');
+  const digits = ['1','2','3','4','5','6','7','8','9'];
+  let html = digits.map(d => `<button class="numpad-btn" onclick="onNumpadDigit('${d}')">${d}</button>`).join('');
+  html += `<button class="numpad-btn clear" onclick="onNumpadClear()">C</button>`;
+  html += `<button class="numpad-btn" onclick="onNumpadDigit('0')">0</button>`;
+  html += `<button class="numpad-btn" onclick="onNumpadBackspace()">⌫</button>`;
+  html += `<button class="numpad-btn confirm" style="grid-column:span 3;" onclick="onNumpadConfirm()">${comboAnswered ? '次の問題' : '決定'}</button>`;
+  numpadEl.innerHTML = html;
+
+  document.getElementById('comboScoreLabel').textContent = `正解 ${comboScore.correct} / ${comboScore.total}`;
+}
+
+function usedCardsManual(){
+  const used = [];
+  manualHole.forEach(c => { if(c) used.push(c); });
+  manualBoard.forEach(c => { if(c) used.push(c); });
+  return used;
+}
+
+/* デッキから1枚タップ → ハンド(2枚)優先、埋まっていればボード(最大5枚)へ */
+function onDeckCardTap(rankChar, suit){
+  const rVal = LV[rankChar];
+  if(usedCardsManual().some(c => c.r === rVal && c.s === suit)) return;
+  if(!manualHole[0]){
+    manualHole[0] = { r:rVal, s:suit };
+  } else if(!manualHole[1]){
+    manualHole[1] = { r:rVal, s:suit };
+  } else {
+    const idx = manualBoard.filter(c => c).length;
+    if(idx < 5) manualBoard[idx] = { r:rVal, s:suit };
+  }
+  renderManual();
+}
+
+function onManualHoleTap(){
+  // ハンド表示をタップしたらハンドだけ選び直し(ボードはそのまま)
+  manualHole = [null, null];
+  renderManual();
+}
+
+function onBoardSlotTap(idx){
+  if(manualBoard[idx]){
+    for(let i = idx; i < 5; i++) manualBoard[i] = null;
+    renderManual();
+  }
+}
+
+function undoManualStep(){
+  const boardFilled = manualBoard.filter(c => c).length;
+  if(boardFilled > 0){
+    manualBoard[boardFilled - 1] = null;
+  } else if(manualHole[1]){
+    manualHole[1] = null;
+  } else if(manualHole[0]){
+    manualHole[0] = null;
+  }
+  renderManual();
+}
+
+function resetManual(){
+  manualHole = [null, null];
+  manualBoard = [null, null, null, null, null];
+  renderManual();
+}
+
+function generateDeckGridHTML(){
+  const used = usedCardsManual();
+  let html = '';
+  SUITS.forEach(s => {
+    RANK_ORDER.forEach(r => {
+      const rVal = LV[r];
+      const isUsed = used.some(c => c.r === rVal && c.s === s);
+      html += `<button class="deck-cell" style="background:${SUIT_BG[s]};" ${isUsed ? 'disabled' : `onclick="onDeckCardTap('${r}','${s}')"`}>${r}${SUIT_SYMBOL[s]}</button>`;
+    });
+  });
+  return html;
+}
+
+function generateManualCommunityHTML(){
+  const filledCount = manualBoard.filter(c => c).length;
+  let html = '';
+  for(let i = 0; i < 5; i++){
+    if(manualBoard[i]){
+      html += `<div onclick="onBoardSlotTap(${i})" style="cursor:pointer;">${cardHTML(manualBoard[i])}</div>`;
+    } else {
+      html += emptySlotHTML(i === filledCount);
+    }
+  }
+  return html;
+}
+
+function generateManualHoleHTML(){
+  if(manualHole[0] && manualHole[1]){
+    return `<div onclick="onManualHoleTap()" style="display:flex;gap:8px;cursor:pointer;">${manualHole.map(cardHTML).join('')}</div>`;
+  }
+  let html = '<div style="display:flex;gap:8px;">';
+  for(let i = 0; i < 2; i++){
+    if(manualHole[i]){
+      html += cardHTML(manualHole[i]);
+    } else {
+      const isActive = (i === 0 && !manualHole[0]) || (i === 1 && manualHole[0] && !manualHole[1]);
+      html += emptySlotHTML(isActive);
+    }
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderManual(){
+  const holeComplete = manualHole[0] && manualHole[1];
+  // ハンド選択中はボード欄(5枚分)を隠し、ハンド選択が終わったら表示する
+  document.getElementById('manualCommunity').innerHTML = holeComplete ? generateManualCommunityHTML() : '';
+  document.getElementById('manualHoleRow').innerHTML = generateManualHoleHTML();
+
+  const hasAnySelection = !!manualHole[0] || manualBoard.some(c => c);
+  const undoBtn = document.getElementById('undoBtn');
+  if(undoBtn) undoBtn.disabled = !hasAnySelection;
+
+  const filledCount = manualBoard.filter(c => c).length;
+  const labelEl = document.getElementById('manualStageLabel');
+  if(!manualHole[0]){
+    labelEl.textContent = 'ハンドの1枚目をデッキから選択';
+  } else if(!manualHole[1]){
+    labelEl.textContent = 'ハンドの2枚目をデッキから選択';
+  } else if(filledCount < 3){
+    labelEl.textContent = `ボードをデッキから選択(あと${3 - filledCount}枚でフロップ)`;
+  } else {
+    labelEl.textContent = ['', '', '', 'フロップ', 'ターン', 'リバー'][filledCount];
+  }
+
+  document.getElementById('deckGrid').innerHTML = generateDeckGridHTML();
+
+  const nameEl = document.getElementById('manualHandName');
+  const tierEl = document.getElementById('manualTierRow');
+  const pyramidEl = document.getElementById('manualPyramidWrap');
+  const community = manualBoard.filter(c => c);
+
+  if(manualHole[0] && manualHole[1] && community.length >= 3){
+    const evalResult = evaluateBest([...manualHole, ...community]);
+    let name = HAND_NAMES[evalResult.rank];
+    if(evalResult.rank === 9) name = 'ロイヤルフラッシュ';
+    if(isBoardOnly(evalResult, community)) name += ' <span class="board-tag">(ボード)</span>';
+    nameEl.innerHTML = name;
+    nameEl.className = 'hand-name ' + handClass(evalResult.rank);
+
+    const dist = computeTierDistribution(manualHole, community);
+    const pct = Math.round(dist.heroPercentile * 100);
+    tierEl.innerHTML = `<div class="tier-badge tier-${dist.heroTier}"><span class="letter">${dist.heroTier}ランク</span><span class="pct">上位${pct}%相当</span></div>`;
+    pyramidEl.innerHTML = pyramidSVG(dist.dist, dist.heroTier) + pyramidLegendHTML(dist.dist, dist.heroTier);
+  } else {
+    nameEl.innerHTML = '';
+    nameEl.className = 'hand-name';
+    tierEl.innerHTML = '';
+    pyramidEl.innerHTML = '';
+  }
+}
 </script>
 </body>
 </html>
