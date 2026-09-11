@@ -119,6 +119,15 @@
       0 2px 0 #737873,
       0 5px 14px rgba(0,0,0,.6);
   }
+  .home-logo-sub{
+    text-align:center;
+    font-size:11px;
+    letter-spacing:.14em;
+    color:var(--gold);
+    opacity:.8;
+    margin-top:6px;
+    font-weight:600;
+  }
   .home-logo-line{
     height:1px;
     background:linear-gradient(90deg,transparent,rgba(232,200,116,.85),transparent);
@@ -359,6 +368,26 @@
     margin-top:2px;
     letter-spacing:0.03em;
   }
+
+  .combo-header-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:4px;
+  }
+  .btn-jump-hard{
+    font-family:inherit;
+    padding:5px 10px;
+    border-radius:999px;
+    border:1px solid rgba(178,128,224,0.4);
+    background:rgba(178,128,224,0.1);
+    color:#cba8ef;
+    font-size:10px;
+    font-weight:700;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .btn-jump-hard:active{ transform:scale(0.95); }
 
   .combo-question{
     text-align:center;
@@ -808,6 +837,7 @@
       <div class="home-logo-main">POKER</div>
       <div class="home-logo-x">×</div>
       <div class="home-logo-hunter">HUNTER</div>
+      <div class="home-logo-sub">〜役ランクジェネレーター〜</div>
       <div class="home-logo-line"></div>
     </div>
 
@@ -968,11 +998,28 @@
       <button class="btn-next single" onclick="newQuizRound()">次の問題</button>
     </div>
   </div>
+  <div class="ask-ai-panel">
+    <button class="btn-ask-ai" id="askAiOpenBtnQuiz" onclick="openAskAiOptionsQuiz()">AIに聞く</button>
+    <div class="ask-ai-options" id="askAiOptionsQuiz" style="display:none;">
+      <label class="ask-ai-option">
+        <input type="checkbox" id="qOptWhyRankQuiz" checked>
+        <span>なぜこのランクになったか(フロップ→ターン→リバーの変化)の解説</span>
+      </label>
+      <label class="ask-ai-option">
+        <input type="checkbox" id="qOptSizingQuiz" checked>
+        <span>バリューベット/ブラフの判断とサイジング</span>
+      </label>
+      <button class="btn-ask-ai" id="askAiBtnQuiz" onclick="copyForAIQuiz()">決定(コピー)</button>
+    </div>
+  </div>
   </div>
 
   <div id="comboPanel" style="display:none;">
   <div class="table">
-    <div class="stage-label">コンボ数クイズ</div>
+    <div class="combo-header-row">
+      <div class="stage-label" style="margin:0;">コンボ数クイズ</div>
+      <button class="btn-jump-hard" onclick="jumpToHard()">中級編へ →</button>
+    </div>
 
     <div class="combo-question" id="comboQuestion"></div>
     <div class="combo-answer-display empty" id="comboAnswerDisplay">?</div>
@@ -1357,6 +1404,14 @@ function computeTier(hole, community){
 }
 
 const TIER_COLORS = { S:'#eef1f4', A:'#ff5fae', B:'#ff4d4d', C:'#ff9d3d', D:'#ffe14d', E:'#4fcf7c' };
+
+/* D・Eランクは「下位◯%相当」、それ以外は「上位◯%相当」で表示する */
+function tierPctLabel(tier, pct){
+  if(tier === 'D' || tier === 'E'){
+    return `下位${100 - pct}%相当`;
+  }
+  return `上位${pct}%相当`;
+}
 const TIER_TEXT_COLORS = { S:'#1a1a1a', A:'#3a0a24', B:'#3a0808', C:'#3a1c02', D:'#3a2f02', E:'#062e13' };
 
 /* S(頂点)〜E(底辺)のピラミッド(色分けと頭文字のみのシンプルな三角形)をSVGで生成。
@@ -1522,7 +1577,7 @@ function render(){
     tierEl.innerHTML = `
       <div class="tier-badge tier-${distResult.heroTier}">
         <span class="letter">${distResult.heroTier}ランク</span>
-        <span class="pct">上位${pct}%相当</span>
+        <span class="pct">${tierPctLabel(distResult.heroTier, pct)}</span>
       </div>`;
     pyramidEl.innerHTML = pyramidSVG(distResult.dist, distResult.heroTier) + pyramidLegendHTML(distResult.dist, distResult.heroTier);
   } else {
@@ -1583,10 +1638,80 @@ function buildStreetHistory(cardText){
     const pct = Math.round(dist.heroPercentile * 100);
     const tierInfo = dist.dist.find(d => d.tier === dist.heroTier);
 
-    lines.push(`[${step.label}] ボード ${boardPart} → 役: ${handName} / ${dist.heroTier}ランク(上位${pct}%, 該当${tierInfo.count}コンボ/全${dist.total}コンボ中)`);
+    lines.push(`[${step.label}] ボード ${boardPart} → 役: ${handName} / ${dist.heroTier}ランク(${tierPctLabel(dist.heroTier, pct)}, 該当${tierInfo.count}コンボ/全${dist.total}コンボ中)`);
     prevCount = step.count;
   }
   return lines.join('\n');
+}
+
+function buildQuizStreetHistory(cardText){
+  const lines = [];
+  let prevCount = 0;
+  const revealed = 3 + quizStreetIndex;
+  for(const step of STREET_STEPS){
+    if(revealed < step.count) break;
+    const community = quizFullBoard.slice(0, step.count);
+    const newCards = quizFullBoard.slice(prevCount, step.count);
+    const boardPart = prevCount === 0
+      ? community.map(cardText).join(' ')
+      : '+ ' + newCards.map(cardText).join(' ');
+
+    const evalResult = evaluateBest([...quizHole, ...community]);
+    let handName = HAND_NAMES[evalResult.rank];
+    if(evalResult.rank === 9) handName = 'ロイヤルフラッシュ';
+    if(isBoardOnly(evalResult, community)) handName += '(ボード)';
+
+    const dist = computeTierDistribution(quizHole, community);
+    const pct = Math.round(dist.heroPercentile * 100);
+    const tierInfo = dist.dist.find(d => d.tier === dist.heroTier);
+
+    lines.push(`[${step.label}] ボード ${boardPart} → 役: ${handName} / ${dist.heroTier}ランク(${tierPctLabel(dist.heroTier, pct)}, 該当${tierInfo.count}コンボ/全${dist.total}コンボ中)`);
+    prevCount = step.count;
+  }
+  return lines.join('\n');
+}
+
+function openAskAiOptionsQuiz(){
+  document.getElementById('askAiOpenBtnQuiz').style.display = 'none';
+  document.getElementById('askAiOptionsQuiz').style.display = 'block';
+}
+
+function copyForAIQuiz(){
+  const cardText = (c) => rankLabel(c.r) + SUIT_SYMBOL[c.s];
+  const holeText = quizHole.map(cardText).join(' ');
+  const historyText = buildQuizStreetHistory(cardText);
+  const bodyText = `自分のハンド(BTNオープンレンジより出題): ${holeText}\n\n■ 役・ランクの推移(BBディフェンスレンジ基準)\n${historyText}`;
+
+  const QUESTION_TEXT_QUIZ = {
+    qOptWhyRankQuiz: 'フロップ→ターン→リバーで、なぜこのランク(強さ)にこう変化したのかを解説してください。',
+    qOptSizingQuiz: 'この状況でのバリューベット/ブラフの判断と、ベットサイジングについてアドバイスをください。'
+  };
+  const selected = Object.keys(QUESTION_TEXT_QUIZ)
+    .filter(id => document.getElementById(id) && document.getElementById(id).checked)
+    .map(id => QUESTION_TEXT_QUIZ[id]);
+  const closing = selected.length ? selected.join('\n') : 'この状況について教えてください。';
+
+  const text = `【テキサスホールデム 役トレーナー・クイズモード】
+Player: BTN (vs BBDF)
+${bodyText}
+
+${closing}`;
+
+  const showCopiedQuiz = () => {
+    const btn = document.getElementById('askAiBtnQuiz');
+    if(!btn) return;
+    btn.textContent = 'コピーしました';
+    btn.classList.add('copied');
+    setTimeout(()=>{ btn.textContent = '決定(コピー)'; btn.classList.remove('copied'); }, 1800);
+  };
+
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(showCopiedQuiz).catch(()=>{
+      fallbackCopy(text); showCopiedQuiz();
+    });
+  } else {
+    fallbackCopy(text); showCopiedQuiz();
+  }
 }
 
 function openAskAiOptions(){
@@ -1674,6 +1799,10 @@ function goHome(){
   const askOpenBtn = document.getElementById('askAiOpenBtn');
   if(askOptions) askOptions.style.display = 'none';
   if(askOpenBtn) askOpenBtn.style.display = 'inline-block';
+  const askOptionsQuiz = document.getElementById('askAiOptionsQuiz');
+  const askOpenBtnQuiz = document.getElementById('askAiOpenBtnQuiz');
+  if(askOptionsQuiz) askOptionsQuiz.style.display = 'none';
+  if(askOpenBtnQuiz) askOpenBtnQuiz.style.display = 'inline-block';
   resetManual();
   quizHole = null;
   quizFullBoard = null;
@@ -1683,6 +1812,8 @@ function goHome(){
   comboQuestionData = null;
   comboAnswerInput = '';
   comboAnswered = false;
+  comboStreak = 0;
+  comboNextHard = false;
 
   document.getElementById('homePanel').style.display = 'flex';
   document.getElementById('modeTabs').style.display = 'none';
@@ -1832,7 +1963,7 @@ function renderQuiz(){
     tierRowEl.innerHTML = `
       <div class="tier-badge tier-${dist.heroTier}">
         <span class="letter">${dist.heroTier}ランク</span>
-        <span class="pct">上位${pct}%相当</span>
+        <span class="pct">${tierPctLabel(dist.heroTier, pct)}</span>
       </div>`;
     pyramidEl.innerHTML = pyramidSVG(dist.dist, dist.heroTier) + pyramidLegendHTML(dist.dist, dist.heroTier);
     actionsEl.style.visibility = 'visible';
@@ -1843,10 +1974,12 @@ function renderQuiz(){
 }
 
 /* ================== コンボ数クイズ ================== */
-let comboQuestionData = null; // { question, answer, formula }
+let comboQuestionData = null; // { question, answer, formula, hard }
 let comboAnswerInput = '';
 let comboAnswered = false;
 let comboScore = { correct: 0, total: 0 };
+let comboStreak = 0;
+let comboNextHard = false;
 
 function randRank(){ return RANK_ORDER[Math.floor(Math.random() * 13)]; }
 function randTwoDistinctRanks(){
@@ -1901,7 +2034,7 @@ function generateComboQuestion(){
       const [hi, lo] = randTwoDistinctRanks();
       const blockRank = Math.random() < 0.5 ? hi : lo;
       return {
-        question: `自分が${blockRank}${suit}を1枚持っている時、相手の${hi}${lo}s(全スート合計)は何コンボ残っていますか?`,
+        question: `自分が${blockRank}${suit}を1枚持っている時、相手の${hi}${lo}sは何コンボ残っていますか?`,
         answer: 3,
         formula: `4 − 1(1枚ブロック) = 3`
       };
@@ -1909,7 +2042,7 @@ function generateComboQuestion(){
     const [hi, lo] = randTwoDistinctRanks();
     const blockRank = Math.random() < 0.5 ? hi : lo;
     return {
-      question: `自分が${blockRank}${suit}を1枚持っている時、相手の${hi}${lo}o(全スート合計)は何コンボ残っていますか?`,
+      question: `自分が${blockRank}${suit}を1枚持っている時、相手の${hi}${lo}oは何コンボ残っていますか?`,
       answer: 9,
       formula: `12 − 3(1枚ブロック) = 9`
     };
@@ -1938,8 +2071,83 @@ function generateComboQuestion(){
   return { question: `「${a1}${a2}s」と「${b1}${b2}s」を合わせると、合計何コンボ?`, answer: 8, formula: `4 + 4 = 8` };
 }
 
+/* ================== 難問(5連続正解で出現) ================== */
+function generateHardComboQuestion(){
+  const hType = Math.floor(Math.random() * 4);
+
+  // ①2枚ブロック(ポケットペア持ち)
+  if(hType === 0){
+    const r = randRank();
+    return {
+      question: `自分が${r}${r}(ポケットペア)を持っている時、相手の${r}${r}は何コンボ残っていますか?`,
+      answer: 1,
+      formula: `4枚中2枚使用済み → 残り2枚 → 1コンボ`,
+      hard: true
+    };
+  }
+
+  // ②ボード+ハンドの複合ブロック(オフスート、異なるランクを1枚ずつブロック)
+  if(hType === 1){
+    const [hi, lo] = randTwoDistinctRanks();
+    const s1 = randSuitSymbol();
+    let s2 = randSuitSymbol();
+    while(s2 === s1) s2 = randSuitSymbol();
+    return {
+      question: `自分の手に${hi}${s1}、ボードに${lo}${s2}が見えている時、相手の${hi}${lo}o(オフスート)は何コンボ残っていますか?`,
+      answer: 7,
+      formula: `12 − (3 + 3 − 1[重複]) = 7`,
+      hard: true
+    };
+  }
+
+  // ③レンジ全体の集計(ペアレンジ or スーテッドレンジ、どちらか片方のみ)
+  if(hType === 2){
+    if(Math.random() < 0.5){
+      const pIdx = 3 + Math.floor(Math.random() * 7); // J〜3あたり
+      const pairRank = RANK_ORDER[pIdx];
+      const pairsCount = 6 * (pIdx + 1);
+      return {
+        question: `${pairRank}${pairRank}+ は何コンボ?`,
+        answer: pairsCount,
+        formula: `${pairRank}${pairRank}からAAまで${pIdx + 1}種類 × 6 = ${pairsCount}`,
+        hard: true
+      };
+    }
+    const sIdx = 1 + Math.floor(Math.random() * 6); // K〜8あたり
+    const suitedLowRank = RANK_ORDER[sIdx];
+    const suitedCount = 4 * sIdx;
+    return {
+      question: `A${suitedLowRank}s+ は何コンボ?`,
+      answer: suitedCount,
+      formula: `A${suitedLowRank}sからAKsまで${sIdx}種類 × 4 = ${suitedCount}`,
+      hard: true
+    };
+  }
+
+  // ④フラッシュ絡みのブロック
+  const n = 1 + Math.floor(Math.random() * 3); // ボードに見えているスート枚数
+  const remaining = 13 - n;
+  const answer = remaining * (remaining - 1) / 2;
+  return {
+    question: `ボードに♠が${n}枚見えていて、自分は♠を持っていない時、相手が持てるスーテッドスペード(2枚とも♠)は全体で何コンボありますか?`,
+    answer,
+    formula: `残り${remaining}枚から2枚選ぶ → ${remaining}×${remaining - 1}÷2 = ${answer}`,
+    hard: true
+  };
+}
+
+function jumpToHard(){
+  comboNextHard = true;
+  newComboQuestion();
+}
+
 function newComboQuestion(){
-  comboQuestionData = generateComboQuestion();
+  if(comboNextHard){
+    comboQuestionData = generateHardComboQuestion();
+    comboNextHard = false;
+  } else {
+    comboQuestionData = generateComboQuestion();
+  }
   comboAnswerInput = '';
   comboAnswered = false;
   renderComboQuiz();
@@ -1967,12 +2175,19 @@ function onNumpadConfirm(){
   comboAnswered = true;
   comboScore.total++;
   const userAnswer = parseInt(comboAnswerInput, 10);
-  if(userAnswer === comboQuestionData.answer) comboScore.correct++;
+  if(userAnswer === comboQuestionData.answer){
+    comboScore.correct++;
+    comboStreak++;
+    if(comboStreak > 0 && comboStreak % 5 === 0) comboNextHard = true;
+  } else {
+    comboStreak = 0;
+  }
   renderComboQuiz();
 }
 
 function renderComboQuiz(){
-  document.getElementById('comboQuestion').textContent = comboQuestionData.question;
+  const hardTag = comboQuestionData.hard ? '【難問】' : '';
+  document.getElementById('comboQuestion').textContent = hardTag + comboQuestionData.question;
 
   const displayEl = document.getElementById('comboAnswerDisplay');
   displayEl.textContent = comboAnswerInput === '' ? '?' : comboAnswerInput;
@@ -2000,7 +2215,7 @@ function renderComboQuiz(){
   html += `<button class="numpad-btn confirm" style="grid-column:span 3;" onclick="onNumpadConfirm()">${comboAnswered ? '次の問題' : '決定'}</button>`;
   numpadEl.innerHTML = html;
 
-  document.getElementById('comboScoreLabel').textContent = `正解 ${comboScore.correct} / ${comboScore.total}`;
+  document.getElementById('comboScoreLabel').textContent = `正解 ${comboScore.correct} / ${comboScore.total} ・ 連続正解 ${comboStreak}`;
 }
 
 function usedCardsManual(){
@@ -2025,9 +2240,9 @@ function onDeckCardTap(rankChar, suit){
   renderManual();
 }
 
-function onManualHoleTap(){
-  // ハンド表示をタップしたらハンドだけ選び直し(ボードはそのまま)
-  manualHole = [null, null];
+function onManualHoleCardTap(idx){
+  // 片方だけ選び直し。ボードは維持したまま
+  manualHole[idx] = null;
   renderManual();
 }
 
@@ -2083,13 +2298,10 @@ function generateManualCommunityHTML(){
 }
 
 function generateManualHoleHTML(){
-  if(manualHole[0] && manualHole[1]){
-    return `<div onclick="onManualHoleTap()" style="display:flex;gap:8px;cursor:pointer;">${manualHole.map(cardHTML).join('')}</div>`;
-  }
   let html = '<div style="display:flex;gap:8px;">';
   for(let i = 0; i < 2; i++){
     if(manualHole[i]){
-      html += cardHTML(manualHole[i]);
+      html += `<div onclick="onManualHoleCardTap(${i})" style="cursor:pointer;">${cardHTML(manualHole[i])}</div>`;
     } else {
       const isActive = (i === 0 && !manualHole[0]) || (i === 1 && manualHole[0] && !manualHole[1]);
       html += emptySlotHTML(isActive);
@@ -2100,9 +2312,9 @@ function generateManualHoleHTML(){
 }
 
 function renderManual(){
-  const holeComplete = manualHole[0] && manualHole[1];
-  // ハンド選択中はボード欄(5枚分)を隠し、ハンド選択が終わったら表示する
-  document.getElementById('manualCommunity').innerHTML = holeComplete ? generateManualCommunityHTML() : '';
+  // ボードは1枚でも選ばれていれば表示を維持する(ハンドを選び直している最中でも消えない)
+  const boardHasAny = manualBoard.some(c => c);
+  document.getElementById('manualCommunity').innerHTML = boardHasAny ? generateManualCommunityHTML() : '';
   document.getElementById('manualHoleRow').innerHTML = generateManualHoleHTML();
 
   const hasAnySelection = !!manualHole[0] || manualBoard.some(c => c);
@@ -2138,7 +2350,7 @@ function renderManual(){
 
     const dist = computeTierDistribution(manualHole, community);
     const pct = Math.round(dist.heroPercentile * 100);
-    tierEl.innerHTML = `<div class="tier-badge tier-${dist.heroTier}"><span class="letter">${dist.heroTier}ランク</span><span class="pct">上位${pct}%相当</span></div>`;
+    tierEl.innerHTML = `<div class="tier-badge tier-${dist.heroTier}"><span class="letter">${dist.heroTier}ランク</span><span class="pct">${tierPctLabel(dist.heroTier, pct)}</span></div>`;
     pyramidEl.innerHTML = pyramidSVG(dist.dist, dist.heroTier) + pyramidLegendHTML(dist.dist, dist.heroTier);
   } else {
     nameEl.innerHTML = '';
