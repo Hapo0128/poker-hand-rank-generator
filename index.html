@@ -2234,8 +2234,8 @@ function onDeckCardTap(rankChar, suit){
   } else if(!manualHole[1]){
     manualHole[1] = { r:rVal, s:suit };
   } else {
-    const idx = manualBoard.filter(c => c).length;
-    if(idx < 5) manualBoard[idx] = { r:rVal, s:suit };
+    const idx = manualBoard.findIndex(c => !c); // 空いている最初のスロット(途中の穴も優先して埋める)
+    if(idx !== -1) manualBoard[idx] = { r:rVal, s:suit };
   }
   renderManual();
 }
@@ -2247,16 +2247,20 @@ function onManualHoleCardTap(idx){
 }
 
 function onBoardSlotTap(idx){
+  // そのカードだけ選び直し。他のボードカードはそのまま残す
   if(manualBoard[idx]){
-    for(let i = idx; i < 5; i++) manualBoard[i] = null;
+    manualBoard[idx] = null;
     renderManual();
   }
 }
 
 function undoManualStep(){
-  const boardFilled = manualBoard.filter(c => c).length;
-  if(boardFilled > 0){
-    manualBoard[boardFilled - 1] = null;
+  let lastFilledIdx = -1;
+  for(let i = 4; i >= 0; i--){
+    if(manualBoard[i]){ lastFilledIdx = i; break; }
+  }
+  if(lastFilledIdx !== -1){
+    manualBoard[lastFilledIdx] = null;
   } else if(manualHole[1]){
     manualHole[1] = null;
   } else if(manualHole[0]){
@@ -2285,13 +2289,14 @@ function generateDeckGridHTML(){
 }
 
 function generateManualCommunityHTML(){
-  const filledCount = manualBoard.filter(c => c).length;
+  const nextEmptyIdx = manualBoard.findIndex(c => !c);
+  const boardTurn = !!(manualHole[0] && manualHole[1]); // ハンドが両方揃って初めてボードを選ぶ番になる
   let html = '';
   for(let i = 0; i < 5; i++){
     if(manualBoard[i]){
       html += `<div onclick="onBoardSlotTap(${i})" style="cursor:pointer;">${cardHTML(manualBoard[i])}</div>`;
     } else {
-      html += emptySlotHTML(i === filledCount);
+      html += emptySlotHTML(boardTurn && i === nextEmptyIdx);
     }
   }
   return html;
@@ -2312,9 +2317,8 @@ function generateManualHoleHTML(){
 }
 
 function renderManual(){
-  // ボードは1枚でも選ばれていれば表示を維持する(ハンドを選び直している最中でも消えない)
-  const boardHasAny = manualBoard.some(c => c);
-  document.getElementById('manualCommunity').innerHTML = boardHasAny ? generateManualCommunityHTML() : '';
+  // ボードは常に5枚分の枠を表示する(ハンド選択中でも点線のまま表示)
+  document.getElementById('manualCommunity').innerHTML = generateManualCommunityHTML();
   document.getElementById('manualHoleRow').innerHTML = generateManualHoleHTML();
 
   const hasAnySelection = !!manualHole[0] || manualBoard.some(c => c);
