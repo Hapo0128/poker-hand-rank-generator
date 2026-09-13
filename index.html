@@ -90,7 +90,7 @@
   }
   .home-logo-main{
     font-family:Georgia,"Times New Roman",serif;
-    font-size:32px;
+    font-size:38px;
     line-height:.92;
     letter-spacing:.035em;
     font-weight:900;
@@ -102,7 +102,7 @@
   }
   .home-logo-x{
     font-family:Georgia,"Times New Roman",serif;
-    font-size:18px;
+    font-size:22px;
     line-height:1;
     color:var(--gold-bright);
     margin:2px 0 0;
@@ -110,7 +110,7 @@
   }
   .home-logo-hunter{
     font-family:Georgia,"Times New Roman",serif;
-    font-size:28px;
+    font-size:34px;
     line-height:.92;
     letter-spacing:.055em;
     font-weight:900;
@@ -121,7 +121,7 @@
   }
   .home-logo-sub{
     text-align:center;
-    font-size:9.5px;
+    font-size:10.5px;
     letter-spacing:.14em;
     color:var(--gold);
     opacity:.8;
@@ -138,8 +138,8 @@
     position:relative;
     display:flex;
     flex-direction:column;
-    gap:7px;
-    padding:10px 10px 10px;
+    gap:11px;
+    padding:14px 12px 16px;
     overflow:hidden;
   }
   .hc-suit{
@@ -166,15 +166,15 @@
     position:relative;
     font-family:inherit;
     text-align:left;
-    padding:8px 11px;
-    min-height:56px;
-    border-radius:14px;
+    padding:12px 14px;
+    min-height:76px;
+    border-radius:16px;
     border:1px solid rgba(232,200,116,0.3);
     background:linear-gradient(155deg, rgba(232,200,116,0.1), rgba(0,0,0,0.2));
     cursor:pointer;
     display:flex;
     align-items:center;
-    gap:9px;
+    gap:12px;
     width:100%;
     max-width:none;
     flex:none;
@@ -182,39 +182,39 @@
   .home-cover-btn:active{ transform:scale(0.98); }
   .home-cover-btn .hc-icon{
     flex-shrink:0;
-    width:34px;height:34px;
+    width:44px;height:44px;
   }
   .home-cover-btn .hc-icon svg{ width:100%; height:100%; }
   .home-cover-btn .hc-text{
     flex:1;
     display:flex;
     flex-direction:column;
-    gap:1px;
+    gap:2px;
     min-width:0;
   }
   .home-cover-btn .hc-title{
-    font-size:13px;
+    font-size:15px;
     font-weight:800;
     color:var(--gold-bright);
   }
   .home-cover-btn .hc-desc{
-    font-size:9px;
+    font-size:10.5px;
     color:var(--dim);
-    line-height:1.25;
+    line-height:1.3;
     overflow:hidden;
     display:-webkit-box;
-    -webkit-line-clamp:1;
+    -webkit-line-clamp:2;
     -webkit-box-orient:vertical;
   }
   .home-cover-btn .hc-arrow{
     flex-shrink:0;
-    width:24px;height:24px;
+    width:30px;height:30px;
     border-radius:50%;
     border:1.5px solid currentColor;
     display:flex;
     align-items:center;
     justify-content:center;
-    font-size:15px;
+    font-size:18px;
     font-weight:700;
   }
 
@@ -443,14 +443,15 @@
   .quiz-type-tab{
     flex:1;
     font-family:inherit;
-    padding:7px 0;
+    padding:7px 4px;
     border-radius:9px;
     border:1px solid rgba(232,200,116,0.25);
     background:rgba(255,255,255,0.04);
     color:var(--dim);
-    font-size:11px;
+    font-size:10px;
     font-weight:700;
     cursor:pointer;
+    line-height:1.3;
   }
   .quiz-type-tab.active{
     background:linear-gradient(155deg,var(--gold-bright),var(--gold));
@@ -1124,7 +1125,7 @@
   <div class="table">
     <div class="quiz-type-tabs" id="quickPotTypeTabs">
       <button class="quiz-type-tab active" data-type="normal" onclick="setQuickPotType('normal')">通常ポット</button>
-      <button class="quiz-type-tab" data-type="3bet" onclick="setQuickPotType('3bet')">3ベットポット</button>
+      <button class="quiz-type-tab" data-type="3bet" onclick="setQuickPotType('3bet')">3BETポット</button>
     </div>
     <div class="position-tabs" id="quickPositionTabs">
       <button class="position-tab" data-pos="UTG" onclick="setQuickPosition('UTG')">UTG</button>
@@ -1178,7 +1179,7 @@
   <div class="table">
     <div class="quiz-type-tabs" id="manualPotTypeTabs">
       <button class="quiz-type-tab active" data-type="normal" onclick="setManualPotType('normal')">通常ポット</button>
-      <button class="quiz-type-tab" data-type="3bet" onclick="setManualPotType('3bet')">3ベットポット</button>
+      <button class="quiz-type-tab" data-type="3bet" onclick="setManualPotType('3bet')">3BETポット</button>
     </div>
     <div class="position-tabs" id="manualPositionTabs">
       <button class="position-tab" data-pos="UTG" onclick="setManualPosition('UTG')">UTG</button>
@@ -1210,7 +1211,7 @@
   <div class="table">
     <div class="quiz-type-tabs" id="quizTypeTabs">
       <button class="quiz-type-tab active" data-type="tier" onclick="setQuizType('tier')">ランク推移</button>
-      <button class="quiz-type-tab" data-type="3bet" onclick="setQuizType('3bet')">vs3ベット</button>
+      <button class="quiz-type-tab" data-type="3bet" onclick="setQuizType('3bet')">vs3BET判断練習</button>
     </div>
     <div class="position-tabs" id="quizPositionTabs">
       <button class="position-tab" data-pos="UTG" onclick="setQuizPosition('UTG')">UTG</button>
@@ -1223,7 +1224,7 @@
     <div id="quizTierWrap">
     <div class="quiz-type-tabs" id="quizPotTypeTabs">
       <button class="quiz-type-tab active" data-type="normal" onclick="setQuizPotType('normal')">通常ポット</button>
-      <button class="quiz-type-tab" data-type="3bet" onclick="setQuizPotType('3bet')">3ベットポット</button>
+      <button class="quiz-type-tab" data-type="3bet" onclick="setQuizPotType('3bet')">3BETポット</button>
     </div>
     <div class="stage-label" id="quizStageLabel">フロップ</div>
     <div class="community" id="quizCommunity"></div>
@@ -1247,7 +1248,7 @@
     </div>
 
     <div id="quiz3betWrap" style="display:none;">
-      <div class="stage-label" id="quiz3betStageLabel">プリフロップ・3ベットを受けた</div>
+      <div class="stage-label" id="quiz3betStageLabel">プリフロップ・3BETを受けた</div>
       <div class="hole-row" id="quiz3betHoleRow"></div>
       <div class="quiz-3bet-msg" id="quiz3betMsg"></div>
 
@@ -2563,7 +2564,7 @@ function on3betGuess(action){
 function renderQuiz3bet(){
   document.getElementById('quiz3betHoleRow').innerHTML = quiz3betHole.map(cardHTML).join('');
   document.getElementById('quiz3betMsg').textContent =
-    `あなたは${quizPosition}でオープンしました。BBに3ベットされています。あなたのアクションは?`;
+    `あなたは${quizPosition}でオープンしました。BBに3BETされています。あなたのアクションは?`;
 
   const guessRowEl = document.getElementById('quiz3betGuessRow');
   const actions = ['フォールド', 'コール', '4ベット'];
@@ -2586,7 +2587,7 @@ function renderQuiz3bet(){
     stampEl.className = 'quiz-stamp ' + (isCorrect ? 'correct' : 'wrong');
     stampEl.innerHTML = `
       <span class="mark">${isCorrect ? '○' : '✕'}</span>
-      <span class="msg">${isCorrect ? '正解!' : `残念...正解は${correct}`}(${label} = ${handRank}ランク、${quizPosition}の3ベット基準は${THREEBET_BASIS_RANK[quizPosition]}ランク)</span>`;
+      <span class="msg">${isCorrect ? '正解!' : `残念...正解は${correct}`}(${label} = ${handRank}ランク、${quizPosition}の3BET基準は${THREEBET_BASIS_RANK[quizPosition]}ランク)</span>`;
     actionsEl.style.visibility = 'visible';
   }
 
