@@ -2574,6 +2574,8 @@ function enterMode(mode){
   document.getElementById('homePanel').style.display = 'none';
   document.getElementById('settingsPanel').style.display = 'none';
   document.getElementById('modeTabs').style.display = 'flex';
+  document.querySelector('.home-corner').style.display = '';
+  document.querySelector('.title').style.display = '';
   setMode(mode);
   if(mode === 'quick') newHand();
 }
