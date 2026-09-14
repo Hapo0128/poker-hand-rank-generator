@@ -3013,7 +3013,7 @@ function renderQuiz(){
     else if(d === 1){ cls = 'close'; mark = '△'; msg = '惜しい!(1ランク差)'; }
     else { cls = 'wrong'; mark = '✕'; msg = '残念...'; }
     stampEl.className = 'quiz-stamp ' + cls;
-    stampEl.innerHTML = `<span class="mark">${mark}</span><span class="msg">${msg}(正解は${dist.heroTier}ランク)</span>`;
+    stampEl.innerHTML = `<span class="mark">${mark}</span><span class="msg">${msg}</span>`;
 
     tierRowEl.innerHTML = `
       <div class="tier-badge tier-${dist.heroTier}">
