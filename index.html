@@ -430,18 +430,29 @@
   }
   .deck-cell{
     font-family:inherit;
+    position:relative;
     aspect-ratio:0.78;
     border:none;
     border-radius:4px;
-    font-size:8.5px;
-    line-height:1.05;
-    font-weight:800;
     cursor:pointer;
     padding:0;
     color:#fff;
     display:flex;
     align-items:center;
     justify-content:center;
+  }
+  .deck-cell .dc-suit{
+    position:absolute;
+    top:2px;
+    left:3px;
+    font-size:8px;
+    line-height:1;
+    opacity:0.9;
+  }
+  .deck-cell .dc-rank{
+    font-size:15px;
+    font-weight:900;
+    line-height:1;
   }
   .deck-cell:disabled{
     opacity:0.15;
@@ -1096,11 +1107,14 @@
     height:46px;
     font-size:10px;
   }
-  .ptm-count{
+  .ptm-desc{
     margin-left:auto;
-    font-size:11px;
-    font-weight:800;
+    font-size:10.5px;
+    font-weight:700;
     color:var(--gold);
+    text-align:right;
+    max-width:110px;
+    line-height:1.25;
   }
   .ptm-cards .r-label{ font-size:15px; }
 
@@ -1808,6 +1822,24 @@ function judgeVs3bet(handLabel, position){
   if(handIdx <= basisIdx - 2) return '4ベット';
   return 'フォールド';
 }
+/* 役の評価結果を「Aハイフルハウス」のような短い日本語ラベルに変換 */
+function describeHandResult(evalResult){
+  const rc = (r) => rankCharFor(r);
+  const tb = evalResult.tiebreak;
+  switch(evalResult.rank){
+    case 9: return 'ロイヤルフラッシュ';
+    case 8: return `${rc(tb[0])}ハイストレートフラッシュ`;
+    case 7: return `${rc(tb[0])}のフォーカード`;
+    case 6: return `${rc(tb[0])}ハイフルハウス`;
+    case 5: return `${rc(tb[0])}ハイフラッシュ`;
+    case 4: return `${rc(tb[0])}ハイストレート`;
+    case 3: return `${rc(tb[0])}のスリーカード`;
+    case 2: return `${rc(tb[0])}-${rc(tb[1])}のツーペア`;
+    case 1: return `${rc(tb[0])}のワンペア`;
+    default: return `${rc(tb[0])}ハイ`;
+  }
+}
+
 /* 2枚のカード → "AA"/"AKs"/"AKo" 形式のラベルに変換 */
 function rankCharFor(r){ return r === 10 ? 'T' : rankLabel(r); }
 function cardsToHandLabel(cards){
@@ -2016,6 +2048,7 @@ function computeTier(hole, community, position){
 
 const TIER_COLORS = { S:'#eef1f4', A:'#ff5fae', B:'#ff4d4d', C:'#ff9d3d', D:'#ffe14d', E:'#4fcf7c' };
 let lastPyramidList = []; // 直近に描画したピラミッドの全コンボ(タップで中身を見る機能用)
+let lastPyramidCommunity = []; // 同じく、その時のボード(役名の再計算に使う)
 
 /* D・Eランクは「下位◯%相当」、それ以外は「上位◯%相当」で表示する */
 function tierPctLabel(tier, pct){
@@ -2102,12 +2135,16 @@ function onPyramidTierClick(tier){
   if(top5.length === 0){
     listEl.innerHTML = `<p style="text-align:center;color:var(--dim);font-size:12px;">このランクに該当するコンボがありません</p>`;
   } else {
-    listEl.innerHTML = top5.map((g, i) => `
+    listEl.innerHTML = top5.map((g, i) => {
+      const evalResult = evaluateBest([...g.combo, ...lastPyramidCommunity]);
+      const handDesc = describeHandResult(evalResult);
+      return `
       <div class="ptm-row">
         <span class="ptm-rank">${i+1}</span>
         <div class="ptm-cards">${g.combo.map(cardHTML).join('')}</div>
-        ${g.count > 1 ? `<span class="ptm-count">×${g.count}</span>` : ''}
-      </div>`).join('');
+        <span class="ptm-desc">${handDesc}${g.count > 1 ? ` ×${g.count}` : ''}</span>
+      </div>`;
+    }).join('');
   }
   document.getElementById('pyramidTierModal').style.display = 'flex';
 }
@@ -2273,6 +2310,7 @@ function render(){
       </div>`;
     pyramidEl.innerHTML = pyramidSVG(distResult.dist, distResult.heroTier) + pyramidLegendHTML(distResult.dist, distResult.heroTier);
     lastPyramidList = distResult.fullList;
+    lastPyramidCommunity = community;
   } else {
     // プリフロップ、またはランク非表示設定のときは何も出さない
     tierEl.innerHTML = '';
@@ -3024,6 +3062,7 @@ function renderQuiz(){
       </div>`;
     pyramidEl.innerHTML = pyramidSVG(dist.dist, dist.heroTier) + pyramidLegendHTML(dist.dist, dist.heroTier);
     lastPyramidList = dist.fullList;
+    lastPyramidCommunity = community;
     actionsEl.style.visibility = 'visible';
     actionsEl.innerHTML = `<button class="btn-next single" onclick="onQuizNext()">${quizStreetIndex < 2 ? '次(' + stageNames[quizStreetIndex + 1] + ')へ' : '次の問題(新しいハンド)'}</button>`;
   }
@@ -3713,7 +3752,10 @@ function generateDeckGridHTML(){
     RANK_ORDER.forEach(r => {
       const rVal = LV[r];
       const isUsed = used.some(c => c.r === rVal && c.s === s);
-      html += `<button class="deck-cell" style="background:${SUIT_BG[s]};" ${isUsed ? 'disabled' : `onclick="onDeckCardTap('${r}','${s}')"`}>${r}${SUIT_SYMBOL[s]}</button>`;
+      html += `<button class="deck-cell" style="background:${SUIT_BG[s]};" ${isUsed ? 'disabled' : `onclick="onDeckCardTap('${r}','${s}')"`}>
+        <span class="dc-suit">${SUIT_SYMBOL[s]}</span>
+        <span class="dc-rank">${r}</span>
+      </button>`;
     });
   });
   return html;
@@ -3789,6 +3831,7 @@ function renderManual(){
     tierEl.innerHTML = `<div class="tier-badge tier-${dist.heroTier}"><span class="letter">${dist.heroTier}ランク</span><span class="pct">${tierPctLabel(dist.heroTier, pct)}</span></div>`;
     pyramidEl.innerHTML = pyramidSVG(dist.dist, dist.heroTier) + pyramidLegendHTML(dist.dist, dist.heroTier);
     lastPyramidList = dist.fullList;
+    lastPyramidCommunity = community;
   } else {
     nameEl.innerHTML = '';
     nameEl.className = 'hand-name';
