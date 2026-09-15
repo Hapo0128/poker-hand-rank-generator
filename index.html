@@ -377,6 +377,12 @@
     font-size:15px;
     font-weight:800;
     cursor:pointer;
+    text-align:center;
+  }
+  #handImageDropZone.drag-over{
+    background:rgba(87,224,141,0.2);
+    border-color:#57e08d;
+    color:#8fe6ac;
   }
   .btn-edit-toggle.on{
     background:rgba(87,224,141,0.15);
@@ -1362,7 +1368,11 @@
       <button class="position-tab" data-pos="SB" onclick="setManualPosition('SB')">SB vs BB</button>
     </div>
     <input type="file" id="handImageInput" accept="image/*" style="display:none;" onchange="onHandImageSelected(event)">
-    <button class="btn-edit-toggle" onclick="document.getElementById('handImageInput').click()">📷 tenfourのスクショから読み込む</button>
+    <div id="handImageDropZone" class="btn-edit-toggle" style="cursor:pointer;"
+         onclick="document.getElementById('handImageInput').click()"
+         ondragover="onHandImageDragOver(event)"
+         ondragleave="onHandImageDragLeave(event)"
+         ondrop="onHandImageDrop(event)">📷 tenfourのスクショから読み込む(PCはドラッグ&ドロップも可)</div>
     <p class="footer-note" id="handImageStatus" style="min-height:14px;"></p>
     <div id="handImagePickWrap" style="display:none;margin-bottom:8px;"></div>
     <div class="stage-label" id="manualStageLabel">ハンドの1枚目を選択</div>
@@ -3885,7 +3895,30 @@ let pendingImportState = null; // { worker, srcCanvas, playerRows, flopRow, oneC
 
 function onHandImageSelected(evt){
   const file = evt.target.files && evt.target.files[0];
-  if(!file) return;
+  evt.target.value = '';
+  processHandImageFile(file);
+}
+
+function onHandImageDragOver(evt){
+  evt.preventDefault();
+  document.getElementById('handImageDropZone').classList.add('drag-over');
+}
+function onHandImageDragLeave(evt){
+  document.getElementById('handImageDropZone').classList.remove('drag-over');
+}
+function onHandImageDrop(evt){
+  evt.preventDefault();
+  document.getElementById('handImageDropZone').classList.remove('drag-over');
+  const file = evt.dataTransfer && evt.dataTransfer.files && evt.dataTransfer.files[0];
+  processHandImageFile(file);
+}
+
+function processHandImageFile(file){
+  if(!file || !file.type || !file.type.startsWith('image/')){
+    const statusEl = document.getElementById('handImageStatus');
+    if(statusEl) statusEl.textContent = '画像ファイルを選択してください。';
+    return;
+  }
   const statusEl = document.getElementById('handImageStatus');
   statusEl.textContent = 'OCRエンジンを準備中...';
   const reader = new FileReader();
@@ -3935,7 +3968,6 @@ function onHandImageSelected(evt){
     img.src = e.target.result;
   };
   reader.readAsDataURL(file);
-  evt.target.value = '';
 }
 
 function showPlayerPickList(names){
