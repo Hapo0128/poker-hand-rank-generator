@@ -1361,6 +1361,10 @@
       <button class="position-tab active" data-pos="BTN" onclick="setManualPosition('BTN')">BTN vs BB</button>
       <button class="position-tab" data-pos="SB" onclick="setManualPosition('SB')">SB vs BB</button>
     </div>
+    <input type="file" id="handImageInput" accept="image/*" style="display:none;" onchange="onHandImageSelected(event)">
+    <button class="btn-edit-toggle" onclick="document.getElementById('handImageInput').click()">📷 tenfourのスクショから読み込む</button>
+    <p class="footer-note" id="handImageStatus" style="min-height:14px;"></p>
+    <div id="handImagePickWrap" style="display:none;margin-bottom:8px;"></div>
     <div class="stage-label" id="manualStageLabel">ハンドの1枚目を選択</div>
     <div class="community" id="manualCommunity"></div>
     <div class="hole-row" id="manualHoleRow"></div>
@@ -3743,6 +3747,236 @@ function resetManual(){
   manualHole = [null, null];
   manualBoard = [null, null, null, null, null];
   renderManual();
+}
+
+/* ================== ハンド画像の自動読み込み(tenfour-poker.com形式専用) ================== */
+/* 色でカードバッジ(四角い塊)を検出し、行ごとにグルーピングする。
+   「2枚の行が6つ連続=プレイヤー一覧」「3枚の行=フロップ」「その後の1枚行=ターン→リバー」。
+   文字の読み取りにはTesseract.js(本物のOCR)を使う。ヒーローの特定は
+   名前一覧からユーザーにタップしてもらう方式にする(太字判定は画像処理だけでは不安定なため)。 */
+
+let tesseractWorkerPromise = null;
+function ensureTesseractLoaded(){
+  if(tesseractWorkerPromise) return tesseractWorkerPromise;
+  tesseractWorkerPromise = new Promise((resolve, reject)=>{
+    if(window.Tesseract){ resolve(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('Tesseract.jsの読み込みに失敗しました(通信環境を確認してください)'));
+    document.head.appendChild(s);
+  });
+  return tesseractWorkerPromise;
+}
+
+function classifyBadgePixel(r,g,b){
+  if(r>230 && g>230 && b>230) return 'w';
+  if(r>70 && r<140 && g>80 && g<150 && b>100 && b<170 && Math.abs(r-g)<40 && Math.abs(g-b)<40) return 's';
+  if(r>150 && g<90 && b<90) return 'h';
+  if(b>150 && r<100 && g<160) return 'd';
+  if(g>120 && r<130 && b<130) return 'c';
+  return null;
+}
+
+function detectCardBadges(ctx, w, h){
+  const step = 4;
+  const gw = Math.floor(w/step), gh = Math.floor(h/step);
+  const full = ctx.getImageData(0,0,w,h).data;
+  const grid = new Array(gh);
+  for(let gy=0; gy<gh; gy++){
+    grid[gy] = new Array(gw).fill(null);
+    for(let gx=0; gx<gw; gx++){
+      const px = gx*step, py = gy*step;
+      const idx = (py*w + px) * 4;
+      grid[gy][gx] = classifyBadgePixel(full[idx], full[idx+1], full[idx+2]);
+    }
+  }
+  const visited = new Array(gh);
+  for(let i=0;i<gh;i++) visited[i] = new Array(gw).fill(false);
+  const regions = [];
+  for(let gy=0; gy<gh; gy++){
+    for(let gx=0; gx<gw; gx++){
+      if(grid[gy][gx] && !visited[gy][gx]){
+        const c = grid[gy][gx];
+        const queue = [[gx,gy]];
+        visited[gy][gx] = true;
+        const cells = [];
+        while(queue.length){
+          const [cx,cy] = queue.pop();
+          cells.push([cx,cy]);
+          [[-1,0],[1,0],[0,-1],[0,1]].forEach(([dx,dy])=>{
+            const nx=cx+dx, ny=cy+dy;
+            if(nx>=0 && nx<gw && ny>=0 && ny<gh && !visited[ny][nx] && grid[ny][nx]===c){
+              visited[ny][nx]=true;
+              queue.push([nx,ny]);
+            }
+          });
+        }
+        if(cells.length >= 60){
+          const xs = cells.map(p=>p[0]), ys = cells.map(p=>p[1]);
+          regions.push({
+            suit:c,
+            x0: Math.min(...xs)*step, x1: (Math.max(...xs)+1)*step,
+            y0: Math.min(...ys)*step, y1: (Math.max(...ys)+1)*step,
+            size: cells.length
+          });
+        }
+      }
+    }
+  }
+  return regions;
+}
+
+function groupIntoRows(regions){
+  const sorted = regions.slice().sort((a,b)=> a.y0 - b.y0 || a.x0 - b.x0);
+  const rows = [];
+  sorted.forEach(r=>{
+    let placed = false;
+    for(const row of rows){
+      if(Math.abs(row[0].y0 - r.y0) < 20){ row.push(r); placed = true; break; }
+    }
+    if(!placed) rows.push([r]);
+  });
+  rows.forEach(row => row.sort((a,b)=> a.x0 - b.x0));
+  return rows;
+}
+
+/* 領域を切り出してcanvasにして返す(Tesseractに渡す用) */
+function cropToCanvas(srcCanvas, x0,y0,x1,y1, scale){
+  scale = scale || 3;
+  const w = (x1-x0), h = (y1-y0);
+  const c = document.createElement('canvas');
+  c.width = w*scale; c.height = h*scale;
+  const cx = c.getContext('2d');
+  cx.imageSmoothingEnabled = false;
+  cx.drawImage(srcCanvas, x0,y0,w,h, 0,0, w*scale, h*scale);
+  return c;
+}
+
+async function ocrRankFromBadge(worker, srcCanvas, region){
+  // バッジの左側(数字部分)だけを切り出して読む。スートは背景色から既に分かっている
+  const textRight = region.x0 + (region.x1-region.x0) * 0.55;
+  const crop = cropToCanvas(srcCanvas, region.x0+4, region.y0+4, textRight, region.y1-4);
+  const { data } = await worker.recognize(crop);
+  const raw = (data.text || '').trim().toUpperCase();
+  return normalizeRankText(raw);
+}
+
+function normalizeRankText(raw){
+  const cleaned = raw.replace(/[^A0-9TJQK]/g, '');
+  if(cleaned.includes('10')) return 'T';
+  if(cleaned.length === 0) return null;
+  const c = cleaned[0];
+  if(c === '0') return null; // 誤認識対策
+  if('AKQJT98765432'.includes(c)) return c;
+  return null;
+}
+
+async function ocrNameFromRow(worker, srcCanvas, row){
+  // 名前は「ポジションタグの後 〜 そのプレイヤーの最初のカードの手前」まで
+  const x0 = 88;
+  const x1 = row[0].x0 - 10;
+  const crop = cropToCanvas(srcCanvas, x0, row[0].y0, x1, row[0].y1, 2);
+  const { data } = await worker.recognize(crop);
+  return (data.text || '').replace(/[\n\r]/g,' ').trim();
+}
+
+let pendingImportState = null; // { worker, srcCanvas, playerRows, flopRow, oneCardRows }
+
+function onHandImageSelected(evt){
+  const file = evt.target.files && evt.target.files[0];
+  if(!file) return;
+  const statusEl = document.getElementById('handImageStatus');
+  statusEl.textContent = 'OCRエンジンを準備中...';
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const img = new Image();
+    img.onload = async function(){
+      try{
+        await ensureTesseractLoaded();
+      } catch(err){
+        statusEl.textContent = err.message;
+        return;
+      }
+      statusEl.textContent = '画像を解析中...';
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(img, 0, 0);
+
+      const regions = detectCardBadges(ctx, img.width, img.height);
+      const rows = groupIntoRows(regions).filter(row => !row.every(r=>r.suit==='w'));
+
+      const twoCardRows = rows.filter(row => row.length === 2);
+      const playerRows = twoCardRows.slice(0, 6); // UTG〜BBの6行
+      const boardRows = rows.filter(row => row.length !== 2);
+      const flopRow = boardRows.find(row => row.length === 3);
+      const oneCardRows = boardRows.filter(row => row.length === 1);
+
+      if(playerRows.length < 2){
+        statusEl.textContent = 'プレイヤー欄が見つかりませんでした。画像を確認してください。';
+        return;
+      }
+
+      statusEl.textContent = `プレイヤー名を読み取り中...(0/${playerRows.length})`;
+      const worker = await Tesseract.createWorker('eng');
+      const names = [];
+      for(let i=0;i<playerRows.length;i++){
+        const name = await ocrNameFromRow(worker, canvas, playerRows[i]);
+        names.push(name || `(プレイヤー${i+1})`);
+        statusEl.textContent = `プレイヤー名を読み取り中...(${i+1}/${playerRows.length})`;
+      }
+
+      pendingImportState = { worker, srcCanvas: canvas, playerRows, flopRow, oneCardRows };
+      showPlayerPickList(names);
+      statusEl.textContent = '自分の名前をタップしてください';
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  evt.target.value = '';
+}
+
+function showPlayerPickList(names){
+  const wrap = document.getElementById('handImagePickWrap');
+  wrap.innerHTML = names.map((name, i) =>
+    `<button class="btn-back" style="margin-bottom:6px;" onclick="onPickHeroRow(${i})">${name.replace(/</g,'&lt;')}</button>`
+  ).join('');
+  wrap.style.display = 'block';
+}
+
+async function onPickHeroRow(index){
+  const statusEl = document.getElementById('handImageStatus');
+  const wrap = document.getElementById('handImagePickWrap');
+  wrap.style.display = 'none';
+  wrap.innerHTML = '';
+  if(!pendingImportState) return;
+  const { worker, srcCanvas, playerRows, flopRow, oneCardRows } = pendingImportState;
+  statusEl.textContent = 'カードの数字を読み取り中...';
+
+  resetManual();
+  try{
+    const heroRow = playerRows[index];
+    for(let i=0;i<heroRow.length && i<2;i++){
+      const rank = await ocrRankFromBadge(worker, srcCanvas, heroRow[i]);
+      if(rank) manualHole[i] = { r: LV[rank], s: heroRow[i].suit };
+    }
+    const boardBadges = [];
+    if(flopRow) flopRow.forEach(r=>boardBadges.push(r));
+    oneCardRows.forEach(row => row.forEach(r=>boardBadges.push(r)));
+    for(let i=0;i<boardBadges.length && i<5;i++){
+      const rank = await ocrRankFromBadge(worker, srcCanvas, boardBadges[i]);
+      if(rank) manualBoard[i] = { r: LV[rank], s: boardBadges[i].suit };
+    }
+    renderManual();
+    statusEl.textContent = '読み取りました。念のため画像と見比べて確認してください(間違っていればタップして選び直せます)。';
+  } catch(err){
+    statusEl.textContent = '読み取り中にエラーが発生しました: ' + err.message;
+  } finally {
+    await worker.terminate();
+    pendingImportState = null;
+  }
 }
 
 function generateDeckGridHTML(){
