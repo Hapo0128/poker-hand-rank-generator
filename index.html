@@ -1389,6 +1389,7 @@
 
     <div class="actions">
       <button class="btn-back" id="undoBtn" onclick="undoManualStep()">戻る</button>
+      <button class="btn-back" id="redoBtn" style="display:none;" onclick="redoManualStep()">進む →</button>
       <button class="btn-back" onclick="resetManual()">リセット</button>
     </div>
   </div>
@@ -2533,6 +2534,7 @@ const SUIT_BG = { d:'#3f7fe8', h:'#dd4b4b', c:'#6fbf4a', s:'#6b7178' };
 
 let manualHole = [null, null];
 let manualBoard = [null, null, null, null, null];
+let manualRevealedCount = 0; // ボードのうち「表示している」枚数(データ自体は消さない)
 let manualPosition = 'BTN';
 let manualPotType = 'normal';
 let manualPerspective = 'opener';
@@ -3705,7 +3707,7 @@ function renderComboQuiz(){
 function usedCardsManual(){
   const used = [];
   manualHole.forEach(c => { if(c) used.push(c); });
-  manualBoard.forEach(c => { if(c) used.push(c); });
+  manualBoard.slice(0, manualRevealedCount).forEach(c => { if(c) used.push(c); });
   return used;
 }
 
@@ -3718,7 +3720,15 @@ function onDeckCardTap(rankChar, suit){
   } else if(!manualHole[1]){
     manualHole[1] = { r:rVal, s:suit };
   } else {
-    const idx = manualBoard.findIndex(c => !c); // 空いている最初のスロット(途中の穴も優先して埋める)
+    // 表示中の範囲に穴があればそこを優先して埋める。無ければ表示を1枚先に進めて埋める
+    let idx = -1;
+    for(let i = 0; i < manualRevealedCount; i++){
+      if(!manualBoard[i]){ idx = i; break; }
+    }
+    if(idx === -1 && manualRevealedCount < 5){
+      idx = manualRevealedCount;
+      manualRevealedCount++;
+    }
     if(idx !== -1) manualBoard[idx] = { r:rVal, s:suit };
   }
   renderManual();
@@ -3731,21 +3741,21 @@ function onManualHoleCardTap(idx){
 }
 
 function onBoardSlotTap(idx){
-  // そのカードだけ選び直し。他のボードカードはそのまま残す
-  if(manualBoard[idx]){
+  // そのカードだけ選び直し。他のボードカードはそのまま残す(表示中の範囲のみタップ可能)
+  if(idx < manualRevealedCount && manualBoard[idx]){
     manualBoard[idx] = null;
     renderManual();
   }
 }
 
 function undoManualStep(){
-  let lastFilledIdx = -1;
-  for(let i = 4; i >= 0; i--){
-    if(manualBoard[i]){ lastFilledIdx = i; break; }
+  // ボードを表示中なら、データは消さずに1枚分だけ表示を戻す(進むボタンでまた見れる)
+  if(manualRevealedCount > 0){
+    manualRevealedCount--;
+    renderManual();
+    return;
   }
-  if(lastFilledIdx !== -1){
-    manualBoard[lastFilledIdx] = null;
-  } else if(manualHole[1]){
+  if(manualHole[1]){
     manualHole[1] = null;
   } else if(manualHole[0]){
     manualHole[0] = null;
@@ -3753,9 +3763,18 @@ function undoManualStep(){
   renderManual();
 }
 
+function redoManualStep(){
+  // 戻る操作やインポートで隠れているだけのカードを、データを保ったまま1枚先に進めて見せる
+  if(manualRevealedCount < 5 && manualBoard[manualRevealedCount]){
+    manualRevealedCount++;
+    renderManual();
+  }
+}
+
 function resetManual(){
   manualHole = [null, null];
   manualBoard = [null, null, null, null, null];
+  manualRevealedCount = 0;
   renderManual();
 }
 
@@ -4083,8 +4102,10 @@ async function onPickHeroRow(index, isAutoGuess){
       const rank = await ocrRankFromBadge(worker, srcCanvas, boardBadges[i]);
       if(rank) manualBoard[i] = { r: LV[rank], s: boardBadges[i].suit };
     }
+    // フロップ→ターン→リバーの変化を追えるよう、最初はフロップだけ表示する(進むボタンで先に進める)
+    manualRevealedCount = Math.min(3, boardBadges.length);
     renderManual(); // ハンド・ボードが揃っていればここでピラミッドも自動的に表示される
-    statusEl.innerHTML = `読み取りました。${positionNote}<br>違う人が正しければ、下の一覧からタップして選び直せます。`;
+    statusEl.innerHTML = `読み取りました。${positionNote}<br>ボードは「進む」でターン・リバーへ進められます。違う人が正しければ、下の一覧からタップして選び直せます。`;
   } catch(err){
     statusEl.textContent = '読み取り中にエラーが発生しました: ' + err.message;
   }
@@ -4117,14 +4138,19 @@ function generateDeckGridHTML(){
 }
 
 function generateManualCommunityHTML(){
-  const nextEmptyIdx = manualBoard.findIndex(c => !c);
   const boardTurn = !!(manualHole[0] && manualHole[1]); // ハンドが両方揃って初めてボードを選ぶ番になる
+  // 表示中の範囲内で空いている場所を優先。無ければ「表示を1枚進める」位置を次点にする
+  let nextIdx = -1;
+  for(let i = 0; i < manualRevealedCount; i++){
+    if(!manualBoard[i]){ nextIdx = i; break; }
+  }
+  if(nextIdx === -1) nextIdx = manualRevealedCount;
   let html = '';
   for(let i = 0; i < 5; i++){
-    if(manualBoard[i]){
+    if(i < manualRevealedCount && manualBoard[i]){
       html += `<div onclick="onBoardSlotTap(${i})" style="cursor:pointer;">${cardHTML(manualBoard[i])}</div>`;
     } else {
-      html += emptySlotHTML(boardTurn && i === nextEmptyIdx);
+      html += emptySlotHTML(boardTurn && i === nextIdx);
     }
   }
   return html;
@@ -4153,7 +4179,13 @@ function renderManual(){
   const undoBtn = document.getElementById('undoBtn');
   if(undoBtn) undoBtn.disabled = !hasAnySelection;
 
-  const filledCount = manualBoard.filter(c => c).length;
+  const redoBtn = document.getElementById('redoBtn');
+  if(redoBtn){
+    const canRedo = manualRevealedCount < 5 && !!manualBoard[manualRevealedCount];
+    redoBtn.style.display = canRedo ? '' : 'none';
+  }
+
+  const filledCount = manualRevealedCount;
   const labelEl = document.getElementById('manualStageLabel');
   if(!manualHole[0]){
     labelEl.textContent = 'ハンドの1枚目をデッキから選択';
@@ -4170,7 +4202,7 @@ function renderManual(){
   const nameEl = document.getElementById('manualHandName');
   const tierEl = document.getElementById('manualTierRow');
   const pyramidEl = document.getElementById('manualPyramidWrap');
-  const community = manualBoard.filter(c => c);
+  const community = manualBoard.slice(0, manualRevealedCount).filter(c => c);
 
   if(manualHole[0] && manualHole[1] && community.length >= 3){
     const evalResult = evaluateBest([...manualHole, ...community]);
