@@ -3882,6 +3882,32 @@ function normalizeRankText(raw){
   return null;
 }
 
+/* 名前部分の文字の太さ(平均の連続ピクセル幅)を測る。太字(=自分)ほど値が大きくなりやすい */
+function measureNameBoldness(ctx, row){
+  const x0 = 90, x1 = row[0].x0 - 10, y0 = row[0].y0, y1 = row[0].y1;
+  if(x1 <= x0) return 0;
+  const data = ctx.getImageData(x0, y0, x1-x0, y1-y0).data;
+  const w = x1-x0, h = y1-y0;
+  const bg = [30,41,57];
+  const runs = [];
+  for(let y=4; y<h-4; y+=2){
+    let run = 0;
+    for(let x=0; x<w; x++){
+      const idx = (y*w+x)*4;
+      const d = Math.abs(data[idx]-bg[0]) + Math.abs(data[idx+1]-bg[1]) + Math.abs(data[idx+2]-bg[2]);
+      if(d > 60){
+        run++;
+      } else {
+        if(run > 0) runs.push(run);
+        run = 0;
+      }
+    }
+    if(run > 0) runs.push(run);
+  }
+  if(runs.length === 0) return 0;
+  return runs.reduce((a,b)=>a+b,0) / runs.length;
+}
+
 async function ocrNameFromRow(worker, srcCanvas, row){
   // 名前は「ポジションタグの後 〜 そのプレイヤーの最初のカードの手前」まで
   const x0 = 88;
@@ -3953,6 +3979,7 @@ function processHandImageFile(file){
     if(statusEl) statusEl.textContent = '画像ファイルを選択してください。';
     return;
   }
+  onHandImageNewUpload();
   const statusEl = document.getElementById('handImageStatus');
   statusEl.textContent = 'OCRエンジンを準備中...';
   const reader = new FileReader();
@@ -3989,37 +4016,42 @@ function processHandImageFile(file){
       statusEl.textContent = `プレイヤー名を読み取り中...(0/${playerRows.length})`;
       const worker = await Tesseract.createWorker('eng');
       const names = [];
+      const boldness = [];
       for(let i=0;i<playerRows.length;i++){
         const name = await ocrNameFromRow(worker, canvas, playerRows[i]);
         names.push(name || `(プレイヤー${i+1})`);
+        boldness.push(measureNameBoldness(ctx, playerRows[i]));
         statusEl.textContent = `プレイヤー名を読み取り中...(${i+1}/${playerRows.length})`;
       }
 
+      let guessIndex = 0;
+      for(let i=1;i<boldness.length;i++){ if(boldness[i] > boldness[guessIndex]) guessIndex = i; }
+
       pendingImportState = { worker, srcCanvas: canvas, playerRows, flopRow, oneCardRows };
-      showPlayerPickList(names);
-      statusEl.textContent = '自分の名前をタップしてください';
+      showPlayerPickList(names, guessIndex);
+      statusEl.textContent = `「${names[guessIndex]}」を自分と推測して自動的に読み込みます(文字の太さから判定・確実ではありません)。違う場合は下の一覧からタップし直してください。`;
+      onPickHeroRow(guessIndex, true);
     };
     img.src = e.target.result;
   };
   reader.readAsDataURL(file);
 }
 
-function showPlayerPickList(names){
+function showPlayerPickList(names, guessIndex){
   const wrap = document.getElementById('handImagePickWrap');
-  wrap.innerHTML = names.map((name, i) =>
-    `<button class="btn-back" style="margin-bottom:6px;" onclick="onPickHeroRow(${i})">${name.replace(/</g,'&lt;')}</button>`
-  ).join('');
+  wrap.innerHTML = names.map((name, i) => {
+    const guessed = i === guessIndex;
+    const style = guessed ? 'margin-bottom:6px;border-color:#57e08d;background:rgba(87,224,141,0.15);' : 'margin-bottom:6px;';
+    return `<button class="btn-back" style="${style}" onclick="onPickHeroRow(${i})">${guessed ? '👤 ' : ''}${name.replace(/</g,'&lt;')}</button>`;
+  }).join('');
   wrap.style.display = 'block';
 }
 
-async function onPickHeroRow(index){
+async function onPickHeroRow(index, isAutoGuess){
   const statusEl = document.getElementById('handImageStatus');
-  const wrap = document.getElementById('handImagePickWrap');
-  wrap.style.display = 'none';
-  wrap.innerHTML = '';
   if(!pendingImportState) return;
   const { worker, srcCanvas, playerRows, flopRow, oneCardRows } = pendingImportState;
-  statusEl.textContent = 'ポジションを読み取り中...';
+  if(!isAutoGuess) statusEl.textContent = 'ポジションを読み取り中...';
 
   resetManual();
   try{
@@ -4052,13 +4084,20 @@ async function onPickHeroRow(index){
       if(rank) manualBoard[i] = { r: LV[rank], s: boardBadges[i].suit };
     }
     renderManual(); // ハンド・ボードが揃っていればここでピラミッドも自動的に表示される
-    statusEl.innerHTML = `読み取りました。${positionNote}<br>念のため画像と見比べて確認してください(間違っていればタップして選び直せます)。`;
+    statusEl.innerHTML = `読み取りました。${positionNote}<br>違う人が正しければ、下の一覧からタップして選び直せます。`;
   } catch(err){
     statusEl.textContent = '読み取り中にエラーが発生しました: ' + err.message;
-  } finally {
-    await worker.terminate();
-    pendingImportState = null;
   }
+}
+
+function onHandImageNewUpload(){
+  if(pendingImportState && pendingImportState.worker){
+    pendingImportState.worker.terminate();
+  }
+  pendingImportState = null;
+  const wrap = document.getElementById('handImagePickWrap');
+  wrap.style.display = 'none';
+  wrap.innerHTML = '';
 }
 
 function generateDeckGridHTML(){
