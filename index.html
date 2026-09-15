@@ -3891,6 +3891,40 @@ async function ocrNameFromRow(worker, srcCanvas, row){
   return (data.text || '').replace(/[\n\r]/g,' ').trim();
 }
 
+async function ocrPositionFromRow(worker, srcCanvas, row){
+  // ポジションタグは行の一番左(x=0〜85あたり)の小さなバッジ
+  const crop = cropToCanvas(srcCanvas, 4, row[0].y0+4, 85, row[0].y1-4, 2);
+  const { data } = await worker.recognize(crop);
+  return (data.text || '').trim();
+}
+
+function levenshtein(a, b){
+  const m = a.length, n = b.length;
+  const dp = Array.from({length:m+1}, (_,i)=>[i, ...new Array(n)]);
+  for(let j=0;j<=n;j++) dp[0][j] = j;
+  for(let i=1;i<=m;i++){
+    for(let j=1;j<=n;j++){
+      dp[i][j] = a[i-1]===b[j-1]
+        ? dp[i-1][j-1]
+        : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+    }
+  }
+  return dp[m][n];
+}
+
+/* OCRで読んだ荒いテキストから、一番近いポジション名を選ぶ(UTG/HJ/CO/BTN/SB/BB) */
+function findClosestPosition(rawText){
+  const cleaned = rawText.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if(!cleaned) return null;
+  const candidates = ['UTG','HJ','CO','BTN','SB','BB'];
+  let best = null, bestDist = Infinity;
+  candidates.forEach(cand=>{
+    const d = levenshtein(cleaned, cand);
+    if(d < bestDist){ bestDist = d; best = cand; }
+  });
+  return best;
+}
+
 let pendingImportState = null; // { worker, srcCanvas, playerRows, flopRow, oneCardRows }
 
 function onHandImageSelected(evt){
@@ -3985,11 +4019,27 @@ async function onPickHeroRow(index){
   wrap.innerHTML = '';
   if(!pendingImportState) return;
   const { worker, srcCanvas, playerRows, flopRow, oneCardRows } = pendingImportState;
-  statusEl.textContent = 'カードの数字を読み取り中...';
+  statusEl.textContent = 'ポジションを読み取り中...';
 
   resetManual();
   try{
     const heroRow = playerRows[index];
+
+    // ポジション(UTG/HJ/CO/BTN/SB/BB)を読み取り、一番近いものを選ぶ
+    const rawPos = await ocrPositionFromRow(worker, srcCanvas, heroRow);
+    const closestPos = findClosestPosition(rawPos);
+    let positionNote = '';
+    if(closestPos === 'BB'){
+      setManualPerspective('bb'); // BB側の視点に切り替え
+      positionNote = `ポジション: BBと判定(読み取り結果「${rawPos}」)。vs側のポジションタブは自分で選んでください。`;
+    } else if(closestPos){
+      setManualPosition(closestPos); // 開いた側の視点のまま、タブを合わせる
+      positionNote = `ポジション: ${closestPos}と判定(読み取り結果「${rawPos}」)`;
+    } else {
+      positionNote = 'ポジションは読み取れませんでした。';
+    }
+
+    statusEl.textContent = 'カードの数字を読み取り中...';
     for(let i=0;i<heroRow.length && i<2;i++){
       const rank = await ocrRankFromBadge(worker, srcCanvas, heroRow[i]);
       if(rank) manualHole[i] = { r: LV[rank], s: heroRow[i].suit };
@@ -4001,8 +4051,8 @@ async function onPickHeroRow(index){
       const rank = await ocrRankFromBadge(worker, srcCanvas, boardBadges[i]);
       if(rank) manualBoard[i] = { r: LV[rank], s: boardBadges[i].suit };
     }
-    renderManual();
-    statusEl.textContent = '読み取りました。念のため画像と見比べて確認してください(間違っていればタップして選び直せます)。';
+    renderManual(); // ハンド・ボードが揃っていればここでピラミッドも自動的に表示される
+    statusEl.innerHTML = `読み取りました。${positionNote}<br>念のため画像と見比べて確認してください(間違っていればタップして選び直せます)。`;
   } catch(err){
     statusEl.textContent = '読み取り中にエラーが発生しました: ' + err.message;
   } finally {
