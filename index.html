@@ -2018,6 +2018,14 @@ const TIER_THRESHOLDS = [
   {name:'D', cum:0.85},
   {name:'E', cum:1.00}
 ];
+/* A〜E(Sを除いた残り)を均等5分割するためのしきい値 */
+const NON_S_TIER_THRESHOLDS = [
+  {name:'A', cum:0.2},
+  {name:'B', cum:0.4},
+  {name:'C', cum:0.6},
+  {name:'D', cum:0.8},
+  {name:'E', cum:1.0}
+];
 
 function computeTierDistribution(hole, community, position, rangeComboOverride){
   if(community.length === 0) return null;
@@ -2025,29 +2033,58 @@ function computeTierDistribution(hole, community, position, rangeComboOverride){
   const rangeCombos = rangeComboOverride || getBBRangeCombos(position);
   const heroScore = scoreHand(hole, community);
 
-  const list = [{ score: heroScore, isHero: true, combo: hole, baseScore: baseHandScore(hole, community) }];
+  function evalTop(combo){
+    const e = evaluateBest([...combo, ...community]);
+    return { rank: e.rank, tiebreak: e.tiebreak };
+  }
+
+  const heroEval = evalTop(hole);
+  const list = [{ score: heroScore, isHero: true, combo: hole, baseScore: baseHandScore(hole, community), rank: heroEval.rank, tiebreak: heroEval.tiebreak }];
   for(const combo of rangeCombos){
     const isHero =
       (combo[0].r===hole[0].r && combo[0].s===hole[0].s && combo[1].r===hole[1].r && combo[1].s===hole[1].s) ||
       (combo[0].r===hole[1].r && combo[0].s===hole[1].s && combo[1].r===hole[0].r && combo[1].s===hole[0].s);
     if(isHero) continue;
     if(comboConflicts(combo, usedCards)) continue;
-    list.push({ score: scoreHand(combo, community), isHero: false, combo, baseScore: baseHandScore(combo, community) });
+    const e = evalTop(combo);
+    list.push({ score: scoreHand(combo, community), isHero: false, combo, baseScore: baseHandScore(combo, community), rank: e.rank, tiebreak: e.tiebreak });
   }
 
   list.sort((a,b)=> b.score - a.score);
+
+  // Sランク = 「そのボードでの真のナッツ」と完全に同じ役(タイブレークも全部一致)のコンボだけ。
+  // 主要ランクだけの一致だと、場に強いカードが2枚以上出ているボードで
+  // (例:A♠K♠が場にある)キッカー違いの弱いフラッシュまでSに混ざってしまうため、厳密一致にしている。
+  let nuts = list[0];
+  for(const item of list){ if(item.baseScore > nuts.baseScore) nuts = item; }
+  const nutsKey = nuts.rank + '|' + nuts.tiebreak.join(',');
+  const isNutsClass = (item) => (item.rank + '|' + item.tiebreak.join(',')) === nutsKey;
+
   const total = list.length;
   const counts = { S:0, A:0, B:0, C:0, D:0, E:0 };
   let heroTier = null, heroPercentile = 0;
-  list.forEach((item, i)=>{
-    const percentile = (i+1) / total;
-    let tier = TIER_THRESHOLDS[TIER_THRESHOLDS.length-1].name;
-    for(const t of TIER_THRESHOLDS){
-      if(percentile <= t.cum){ tier = t.name; break; }
+
+  // Sとそれ以外に分ける(list自体は既にscore降順なので、この時点で順序は保たれる)
+  const sItems = [];
+  const restItems = [];
+  list.forEach(item => { (isNutsClass(item) ? sItems : restItems).push(item); });
+
+  sItems.forEach(item => {
+    item.tier = 'S';
+    counts.S++;
+    if(item.isHero){ heroTier = 'S'; heroPercentile = 1 / total; } // Sは概念上「一番上」として扱う
+  });
+
+  const restTotal = restItems.length;
+  restItems.forEach((item, i) => {
+    const p = restTotal > 0 ? (i+1) / restTotal : 0;
+    let tier = 'E';
+    for(const t of NON_S_TIER_THRESHOLDS){
+      if(p <= t.cum){ tier = t.name; break; }
     }
     counts[tier]++;
-    item.tier = tier; // 後で「このランクの中身トップ5」を出すために保持しておく
-    if(item.isHero){ heroTier = tier; heroPercentile = percentile; }
+    item.tier = tier;
+    if(item.isHero){ heroTier = tier; heroPercentile = (sItems.length + i + 1) / total; }
   });
 
   const order = ['S','A','B','C','D','E'];
@@ -3927,6 +3964,39 @@ function measureNameBoldness(ctx, row){
   return runs.reduce((a,b)=>a+b,0) / runs.length;
 }
 
+/* 「Flop」「Turn」「River」の見出し文字を画像全体から探し、そのY座標を返す。
+   レイアウトが横並びでも縦積みでも、見出しの下にあるカードをそのストリートとして拾えるようにする */
+async function findStreetLabelPositions(worker, srcCanvas){
+  const { data } = await worker.recognize(srcCanvas);
+  const words = data.words || [];
+  const found = {};
+  words.forEach(w => {
+    const t = (w.text || '').trim().toLowerCase().replace(/[^a-z]/g, '');
+    if(['flop','turn','river','preflop'].includes(t) && found[t] === undefined){
+      found[t] = w.bbox.y0;
+    }
+  });
+  return found;
+}
+
+/* 見出しのY座標を基準に、カードバッジをフロップ/ターン/リバーへ振り分ける。
+   カードが横一列に並んでいても、縦に1枚ずつ積まれていても対応できる */
+function assignBadgesToStreets(badges, labelY){
+  const sections = ['flop','turn','river']
+    .filter(name => labelY[name] !== undefined)
+    .map(name => ({ name, y: labelY[name] }))
+    .sort((a,b) => a.y - b.y);
+  const result = { flop: [], turn: [], river: [] };
+  badges.forEach(b => {
+    let sec = null;
+    for(const s of sections){ if(s.y <= b.y0) sec = s.name; else break; }
+    if(sec) result[sec].push(b);
+  });
+  // 各ストリートの中では、上から下・左から右の順にソートしておく(縦積み/横並びどちらでも自然な順番になる)
+  Object.keys(result).forEach(k => result[k].sort((a,b)=> a.y0 - b.y0 || a.x0 - b.x0));
+  return result;
+}
+
 async function ocrNameFromRow(worker, srcCanvas, row){
   // 名前は「ポジションタグの後 〜 そのプレイヤーの最初のカードの手前」まで
   const x0 = 88;
@@ -4022,18 +4092,26 @@ function processHandImageFile(file){
       const rows = groupIntoRows(regions).filter(row => !row.every(r=>r.suit==='w'));
 
       const twoCardRows = rows.filter(row => row.length === 2);
-      const playerRows = twoCardRows.slice(0, 6); // UTG〜BBの6行
-      const boardRows = rows.filter(row => row.length !== 2);
-      const flopRow = boardRows.find(row => row.length === 3);
-      const oneCardRows = boardRows.filter(row => row.length === 1);
+      const playerRows = twoCardRows.slice(0, 6); // UTG〜BBの6行(横並びの2枚1組で判定。ここは従来通り)
 
       if(playerRows.length < 2){
         statusEl.textContent = 'プレイヤー欄が見つかりませんでした。画像を確認してください。';
         return;
       }
 
-      statusEl.textContent = `プレイヤー名を読み取り中...(0/${playerRows.length})`;
+      statusEl.textContent = '見出し(Flop/Turn/River)を探しています...';
       const worker = await Tesseract.createWorker('eng');
+      const labelY = await findStreetLabelPositions(worker, canvas);
+
+      // プレイヤー一覧に使ったバッジを除いた残りから、見出しの位置でフロップ/ターン/リバーを振り分ける
+      const usedBadges = new Set();
+      playerRows.forEach(row => row.forEach(b => usedBadges.add(b)));
+      const remainingBadges = regions.filter(b => b.suit !== 'w' && !usedBadges.has(b));
+      const streets = assignBadgesToStreets(remainingBadges, labelY);
+      const flopRow = streets.flop.length ? streets.flop.slice(0,3) : null;
+      const oneCardRows = [streets.turn.slice(0,1), streets.river.slice(0,1)].filter(a => a.length);
+
+      statusEl.textContent = `プレイヤー名を読み取り中...(0/${playerRows.length})`;
       const names = [];
       const boldness = [];
       for(let i=0;i<playerRows.length;i++){
